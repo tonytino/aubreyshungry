@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@theme {
+  /* Muted/secondary text — backs the `text-muted-foreground` utility used by
+     the starter routes. Tailwind v4 emits nothing for an undefined color
+     utility, so this token must exist for that class to render. */
+  --color-muted-foreground: oklch(0.556 0 0);
+}

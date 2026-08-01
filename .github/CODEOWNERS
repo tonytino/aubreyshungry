@@ -1,0 +1,21 @@
+# Owner-gated surfaces — see docs/agents/governance.md.
+# With "Require review from Code Owners" branch protection enabled, PRs
+# touching these paths cannot merge without @tonytino's review. Everything
+# else is deliberately unowned so agent-driven PRs stay self-mergeable.
+
+# Dietary safety — the golden rules and their enforcement
+/docs/agents/dietary-safety.md @tonytino
+
+# Governance and process/config surfaces
+/AGENTS.md @tonytino
+/docs/agents/governance.md @tonytino
+/docs/decisions/ @tonytino
+/.github/ @tonytino
+/scripts/labels.mjs @tonytino
+/package.json @tonytino
+/pnpm-lock.yaml @tonytino
+
+# Security / data surfaces
+/app/env.ts @tonytino
+/.env.example @tonytino
+/db/migrations/ @tonytino

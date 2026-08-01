@@ -1,0 +1,72 @@
+name: Release Check
+
+# Enforces the three-file rule from docs/agents/releases.md: every time
+# package.json#version changes on a PR, there must be a matching CHANGELOG
+# section and a matching migration guide. Silent version bumps fail here.
+
+on:
+  pull_request:
+
+# Least privilege: only reads the repo (diffs versions, checks files).
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-check:
+    name: Version bump requires CHANGELOG + migration guide
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Compare versions
+        id: versions
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          BASE_VERSION=$(git show "$BASE_SHA:package.json" | jq -r .version)
+          HEAD_VERSION=$(jq -r .version package.json)
+          echo "base=$BASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "head=$HEAD_VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$BASE_VERSION" = "$HEAD_VERSION" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No version change (still $HEAD_VERSION). Skipping release checks."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Version changed: $BASE_VERSION -> $HEAD_VERSION"
+          fi
+
+      - name: Verify CHANGELOG entry
+        if: steps.versions.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.versions.outputs.head }}
+        run: |
+          if ! grep -qE "^## \[${VERSION}\]" CHANGELOG.md; then
+            echo "::error file=CHANGELOG.md::Version bumped to ${VERSION} but no '## [${VERSION}]' section found in CHANGELOG.md. See docs/agents/releases.md."
+            exit 1
+          fi
+          echo "CHANGELOG.md has a section for [${VERSION}]"
+
+      - name: Verify migration guide
+        if: steps.versions.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.versions.outputs.head }}
+        run: |
+          MAJOR_MINOR=$(echo "$VERSION" | cut -d. -f1-2)
+          GUIDE="docs/migrations/v${MAJOR_MINOR}.md"
+          if [ ! -f "$GUIDE" ]; then
+            echo "::error file=docs/migrations::Version bumped to ${VERSION} but no migration guide at ${GUIDE}. See docs/agents/releases.md."
+            exit 1
+          fi
+          echo "Migration guide exists: ${GUIDE}"
+
+      - name: Verify CHANGELOG entries carry propagation tags
+        if: steps.versions.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.versions.outputs.head }}
+        run: node .github/scripts/check-changelog-tags.mjs

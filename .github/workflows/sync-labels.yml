@@ -1,0 +1,28 @@
+name: Sync Labels
+
+# Creates/updates the agentic-workflow labels defined in scripts/labels.mjs.
+# Run manually (workflow_dispatch) or automatically when the taxonomy changes.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/labels.mjs
+      - .github/workflows/sync-labels.yml
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Create labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/labels.mjs

@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+
+    // Strict
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Paths
+    "baseUrl": ".",
+    "paths": {
+      // More specific first: ~/db/* resolves to the repo-root db/ directory,
+      // everything else under ~/ resolves to app/.
+      "~/db/*": ["./db/*"],
+      "~/*": ["./app/*"]
+    },
+
+    "skipLibCheck": true
+  },
+  "include": ["app", "tests", "db"]
+}

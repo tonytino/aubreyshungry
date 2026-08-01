@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+# Least privilege: this workflow only needs to read the repo.
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Lint, Type, Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      # pnpm version comes from `packageManager` in package.json
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint & format check
+        run: pnpm exec biome check .
+
+      - name: Validate changelog fragments
+        run: pnpm changelog:check
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Unused dependency check
+        run: pnpm knip
+
+      - name: Unit tests
+        run: pnpm exec vitest run
+
+      # The `secrets` context is not allowed in step-level `if` conditions, so we
+      # detect the optional E2E secret here and gate later steps on this output.
+      - name: Check for E2E database secret
+        id: e2e
+        env:
+          E2E_DATABASE_URL: ${{ secrets.CI_E2E_DATABASE_URL }}
+        run: |
+          if [ -n "$E2E_DATABASE_URL" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Playwright browsers
+        if: steps.e2e.outputs.enabled == 'true'
+        run: pnpm test:e2e:install
+
+      - name: E2E tests
+        if: steps.e2e.outputs.enabled == 'true'
+        run: pnpm test:e2e
+        env:
+          DATABASE_URL: ${{ secrets.CI_E2E_DATABASE_URL }}
+
+  build-smoke:
+    name: Production build smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      # pnpm version comes from `packageManager` in package.json
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      # Serve the production build and smoke-test it. `pnpm dev` can't catch
+      # build-only breakage (e.g. a stylesheet referenced by source path, or a
+      # missing ?url asset import), so we assert the served HTML returns 200 and
+      # that its stylesheet asset actually resolves. No database required.
+      - name: Smoke-test the production server
+        run: |
+          pnpm start &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000 >/dev/null 2>&1 && break
+            sleep 1
+          done
+          HTML=$(curl -fsS http://localhost:3000) || { echo "::error::Homepage did not return 200 from the production server"; exit 1; }
+          CSS=$(printf '%s' "$HTML" | grep -oE '/[^"]*\.css' | head -1)
+          if [ -z "$CSS" ]; then
+            echo "::error::No stylesheet <link> found in served HTML"
+            exit 1
+          fi
+          echo "Stylesheet: $CSS"
+          curl -fsS "http://localhost:3000$CSS" -o /dev/null || { echo "::error::Stylesheet asset $CSS did not resolve (production asset path broken)"; exit 1; }
+          echo "✓ Production build serves the homepage (200) and the stylesheet resolves"
+
+  changelog-fragment:
+    name: Changelog fragment present
+    # PRs must add a changelog fragment (see changelog.d/). Exempt: `release/*`
+    # branches (a release PR assembles + consumes fragments, it doesn't add one)
+    # and any PR carrying the `skip-changelog` label (typo fixes, CI tweaks).
+    if: >-
+      github.event_name == 'pull_request' &&
+      !startsWith(github.head_ref, 'release/') &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Require a changelog fragment
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          ADDED=$(git diff --name-only --diff-filter=AM "$BASE_SHA" HEAD -- changelog.d/ \
+            | grep -v '^changelog.d/README.md$' || true)
+          if [ -z "$ADDED" ]; then
+            echo "::error::This PR adds no changelog fragment under changelog.d/. Add a <slug>.<category>.md fragment (see changelog.d/README.md), or apply the 'skip-changelog' label if no changelog entry is warranted."
+            exit 1
+          fi
+          echo "Changelog fragment(s) in this PR:"
+          echo "$ADDED"

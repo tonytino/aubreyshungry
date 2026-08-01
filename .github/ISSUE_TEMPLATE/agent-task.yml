@@ -1,0 +1,73 @@
+name: Agent Task
+description: A well-scoped task ready for an agent to execute
+title: "[Task]: "
+labels: ["status:ready"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in all sections. An agent will use this issue as its complete specification — be specific and concrete.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What needs to be accomplished? State the outcome, not the implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Checklist of what "done" looks like. An agent will verify each item before closing.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / Files
+      description: Relevant files, prior decisions, or links the agent should read before starting.
+      placeholder: |
+        - `app/routes/foo.tsx` — current implementation
+        - Related issue: #N
+
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size
+      description: Scope for a single agent working independently in one session.
+      options:
+        - "size:xs — < 30 min, single file"
+        - "size:s — < 2 hrs, isolated change"
+        - "size:m — 2–4 hrs, touches multiple files"
+        - "size:l — requires a planning session first (not directly claimable)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: safety
+    attributes:
+      label: Safety
+      description: Does this task require human approval before the agent begins?
+      options:
+        - "safe:agent — no pre-approval needed"
+        - "safe:human — human must approve before agent acts"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - "type:feature"
+        - "type:bug"
+        - "type:chore"
+        - "type:docs"
+    validations:
+      required: true

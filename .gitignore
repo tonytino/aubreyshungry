@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.output/
+.vinxi/
+dist/
+
+# Test coverage
+coverage/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Generated files
+app/routeTree.gen.ts
+app.config.timestamp_*
+
+# Claude Code
+.claude/

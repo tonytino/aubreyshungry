@@ -1,0 +1,58 @@
+name: Bug Report
+description: Something isn't working as expected
+title: "[Bug]: "
+labels: ["type:bug", "status:ready"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly and concisely.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to...
+        2. Click...
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Environment / context
+      description: Browser, OS, relevant env vars (no secrets), error messages, stack traces, logs.
+
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size estimate
+      description: How big does this fix look? Leave on "— select —" if unsure.
+      options:
+        - "— select —"
+        - "size:xs — < 30 min, single file"
+        - "size:s — < 2 hrs, isolated change"
+        - "size:m — 2–4 hrs, touches multiple files"
+        - "size:l — requires investigation first"
+
+  - type: dropdown
+    id: safety
+    attributes:
+      label: Safety
+      description: Leave on "— select —" if unsure; a maintainer will triage.
+      options:
+        - "— select —"
+        - "safe:agent — no pre-approval needed"
+        - "safe:human — human must approve before agent acts"
