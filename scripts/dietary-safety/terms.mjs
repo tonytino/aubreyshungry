@@ -9,9 +9,18 @@
  * Matching contract (enforced by `scripts/dietary-safety/lint.mjs`):
  * - Every pattern is case-insensitive and word-boundary-aware, so containments
  *   like "buckwheat" never trigger the "wheat" rule.
+ * - Multi-word terms use whitespace-tolerant separators (`[\s-]*`), so
+ *   "soy  sauce" (multiple spaces), "soy\tsauce", line-wrapped "soy\nsauce",
+ *   and closed compounds like "soysauce" all still match.
+ * - Allergen terms (cashew/pistachio) deliberately over-match trailing word
+ *   characters (`\w*`), so inflections and closed compounds ("cashewnut",
+ *   "cashewnuts") cannot escape. Wheat covers its own closed compounds
+ *   ("wholewheat", "wheatberries", "wheatgerm", "wheatgrass", "wheaten",
+ *   "wheats") the same way.
  * - ALLOWLIST patterns are masked out of the text *before* forbidden matching
- *   runs, so known-safe phrases ("wheat-free", "certified gluten-free oats")
- *   cannot produce false positives.
+ *   runs, as the union of all matches over the ORIGINAL text, so known-safe
+ *   phrases ("wheat-free", "certified gluten-free oats") cannot produce
+ *   false positives and cannot shadow each other.
  * - Within each forbidden list, more specific entries come first; the linter
  *   masks each match before trying later entries, so "cashew cream" reports
  *   the cream-specific substitute instead of a duplicate generic "cashew" hit.
@@ -29,17 +38,17 @@
 export const FORBIDDEN_GLUTEN = [
   // Hidden traps first (most specific phrasing wins).
   {
-    pattern: /\bsoy[ -]sauce\b/gi,
+    pattern: /\bsoy[\s-]*sauces?\b/gi,
     label: "soy sauce (non-tamari; contains wheat)",
     substitute: "certified-GF tamari or coconut aminos",
   },
   {
-    pattern: /\bbrewer[’']?s[ -]yeast\b/gi,
+    pattern: /\bbrewer[’']?s[\s-]*yeast\b/gi,
     label: "brewer's yeast",
     substitute: "nutritional yeast (verify GF)",
   },
   {
-    pattern: /\boat(?:s|meal)?\b/gi,
+    pattern: /\boat(?:s|meal|en|cakes?)?\b/gi,
     label: "oats (uncertified; standard oats are cross-contaminated)",
     substitute: 'certified gluten-free oats (always write "certified gluten-free oats")',
   },
@@ -58,10 +67,15 @@ export const FORBIDDEN_GLUTEN = [
     label: "seitan (pure wheat gluten)",
     substitute: "tofu, tempeh (certified GF), or mushrooms",
   },
-  // Grains and derivatives.
   {
-    pattern: /\bwheat\b/gi,
-    label: "wheat (incl. whole wheat, wheat berries/germ/bran)",
+    pattern: /\bgluten\b/gi,
+    label: 'gluten (incl. vital wheat gluten; the "gluten-free" phrase is allowlisted)',
+    substitute: "omit — for baking structure use a GF 1:1 flour blend (with xanthan gum)",
+  },
+  // Grains, derivatives, and their closed compounds/inflections.
+  {
+    pattern: /\b(?:whole)?wheat\w*\b/gi,
+    label: "wheat (incl. wholewheat, wheat berries/germ/bran, wheatgrass, wheaten)",
     substitute: "GF 1:1 flour blend, or a GF whole grain (quinoa, brown rice, millet, buckwheat)",
   },
   { pattern: /\bbarley\b/gi, label: "barley", substitute: "quinoa or brown rice" },
@@ -85,78 +99,140 @@ export const FORBIDDEN_GLUTEN = [
   },
   { pattern: /\bbulgur\b/gi, label: "bulgur (wheat)", substitute: "quinoa" },
   { pattern: /\bfreekeh\b/gi, label: "freekeh (wheat)", substitute: "quinoa or sorghum" },
+  // Common wheat-product vocabulary — Rule 1 forbids wheat "in any form".
+  {
+    pattern: /\bpankos?\b/gi,
+    label: "panko (wheat breadcrumbs)",
+    substitute: "certified-GF panko or crushed GF rice crackers",
+  },
+  {
+    pattern: /\borzos?\b/gi,
+    label: "orzo (wheat pasta)",
+    substitute: "GF orzo or short-grain rice",
+  },
+  {
+    pattern: /\budon\b/gi,
+    label: "udon (wheat noodles)",
+    substitute: "rice noodles or 100% buckwheat soba (certified GF)",
+  },
+  {
+    pattern: /\bramen\b/gi,
+    label: "ramen (wheat noodles unless certified GF)",
+    substitute: "certified-GF rice ramen or rice noodles",
+  },
+  {
+    pattern: /\bsobas?\b/gi,
+    label: "soba (usually a wheat blend — only 100% buckwheat, certified GF, is safe)",
+    substitute: '100% buckwheat soba (certified GF) — write it as "buckwheat soba"',
+  },
+  {
+    pattern: /\bgrahams?\b/gi,
+    label: "graham (graham flour/crackers — wheat)",
+    substitute: "certified-GF graham-style crackers",
+  },
+  {
+    pattern: /\bfarina\b/gi,
+    label: "farina (wheat hot cereal)",
+    substitute: "cream of rice, or certified gluten-free oatmeal",
+  },
+  {
+    pattern: /\b(?:phyllo|filo)\b/gi,
+    label: "phyllo/filo (wheat pastry)",
+    substitute: "certified-GF puff pastry, or omit",
+  },
+  {
+    pattern: /\bmatz(?:o|oh|a|ah)s?\b/gi,
+    label: "matzo (wheat)",
+    substitute: "certified-GF matzo-style crackers",
+  },
 ];
 
 /** Rule 2 — cashew/pistachio (life-threatening allergy). @type {ForbiddenTerm[]} */
 export const FORBIDDEN_NUT = [
   // Derived products first, so the substitute suggestion is precise.
   {
-    pattern: /\bcashew[ -](?:cream|cheese|sauce|queso)s?\b/gi,
+    pattern: /\bcashew[\s-]*(?:cream|cheese|sauce|queso)s?\b/gi,
     label: "cashew cream / vegan cashew cheese or sauce",
     substitute: "sunflower-seed cream, coconut cream, or white-bean purée",
   },
   {
-    pattern: /\bcashew[ -]butters?\b/gi,
+    pattern: /\bcashew[\s-]*butters?\b/gi,
     label: "cashew butter",
     substitute: "sunflower-seed butter or almond butter (cross-contact-safe facility)",
   },
   {
-    pattern: /\bcashew[ -]milks?\b/gi,
+    pattern: /\bcashew[\s-]*milks?\b/gi,
     label: "cashew milk",
     substitute: "coconut milk or almond milk (cross-contact-safe facility)",
   },
   {
-    pattern: /\bcashew[ -]flours?\b/gi,
+    pattern: /\bcashew[\s-]*flours?\b/gi,
     label: "cashew flour",
     substitute: "almond flour (cross-contact-safe facility)",
   },
   {
-    pattern: /\bcashews?\b/gi,
-    label: "cashew (any form)",
+    // Deliberate over-match: catches cashews, cashewnut(s), cashewy, etc.
+    pattern: /\bcashew\w*/gi,
+    label: "cashew (any form, incl. closed compounds like cashewnut)",
     substitute: "allowed nuts/seeds: almonds, walnuts, pecans, pumpkin or sunflower seeds",
   },
   {
-    pattern: /\bpistachio[ -]pastes?\b/gi,
+    pattern: /\bpistachio[\s-]*pastes?\b/gi,
     label: "pistachio paste",
     substitute: "pumpkin-seed (pepita) paste",
   },
   {
-    pattern: /\bpistachios?\b/gi,
+    // Deliberate over-match: catches pistachios and any closed compound.
+    pattern: /\bpistachio\w*/gi,
     label: "pistachio (any form)",
     substitute: "pumpkin seeds (pepitas)",
   },
   {
-    pattern: /\bpink[ -]peppercorns?\b/gi,
+    pattern: /\bpink[\s-]*peppercorns?\b/gi,
     label: "pink peppercorn (Anacardiaceae — cross-reactive with cashew/pistachio)",
     substitute: "black or white peppercorns",
   },
   {
-    pattern: /\bmixed[ -]nuts?\b/gi,
+    pattern: /\bmixed[\s-]*nuts?\b/gi,
     label: "mixed nuts (cross-contact risk)",
     substitute: "single-nut products from dedicated cashew/pistachio-free processing",
   },
   {
-    pattern: /\btrail[ -]mix(?:es)?\b/gi,
+    pattern: /\btrail[\s-]*mix(?:es)?\b/gi,
     label: "trail mix (cross-contact risk)",
     substitute: "homemade mix of allowed nuts/seeds and dried fruit",
+  },
+  {
+    pattern: /\bbaklavas?\b/gi,
+    label: "baklava-style dessert (traditionally pistachio/walnut — cross-contact risk)",
+    substitute: "dessert with allowed nuts (e.g. walnuts) from cashew/pistachio-free processing",
+  },
+  {
+    pattern: /\bkormas?\b/gi,
+    label: "korma (commonly cashew-thickened — verify/adapt)",
+    substitute: "adapt: thicken with coconut cream or sunflower-seed butter instead of cashews",
   },
 ];
 
 /**
  * Known-safe phrases that contain (or abut) a forbidden term but must NOT
- * trigger. The linter masks these out before running forbidden matching.
+ * trigger. The linter masks the union of all matches (computed against the
+ * original text) before forbidden matching, so entries never shadow each
+ * other. Separators are whitespace-tolerant, mirroring the forbidden terms.
  * @type {RegExp[]}
  */
 export const ALLOWLIST = [
   // Safe pseudo-grain — unrelated to wheat (word boundaries already protect
   // this; listed for explicitness and belt-and-braces safety).
   /\bbuckwheat\b/gi,
-  // Negations / the safety phrasing itself.
-  /\bwheat[ -]free\b/gi,
-  /\bgluten[ -]free\b/gi,
+  // 100% buckwheat soba is the only acceptable soba phrasing.
+  /\b(?:100%[\s-]*)?buckwheat[\s-]+sobas?\b/gi,
+  // Negations / the safety phrasing itself (incl. closed compounds).
+  /\bwheat[\s-]*free\b/gi,
+  /\bgluten[\s-]*free\b/gi,
   // The only acceptable oats phrasing (mask before the bare-"oats" trap).
-  /\bcertified[ -]gluten[ -]free[ -]oat(?:s|meal)?\b/gi,
-  /\bcertified[ -]gf[ -]oat(?:s|meal)?\b/gi,
+  /\bcertified[\s-]+gluten[\s-]*free[\s-]+oat(?:s|meal|en|cakes?)?\b/gi,
+  /\bcertified[\s-]+gf[\s-]+oat(?:s|meal|en|cakes?)?\b/gi,
 ];
 
 /**

@@ -35,6 +35,10 @@ Forbidden grains and derivatives — never include, in any form:
 - Wheat (including whole wheat, wheat berries, wheat germ, wheat bran)
 - Barley, rye, triticale
 - Spelt, farro, einkorn, emmer, kamut, durum, semolina, couscous, bulgur, freekeh
+- Wheat-based products in any form: panko, orzo, udon, ramen, graham
+  (flour/crackers), farina, phyllo (filo), matzo; soba noodles unless
+  100% buckwheat (certified GF)
+- Vital wheat gluten; seitan (pure wheat gluten)
 - Malt in all forms (malt extract, malt vinegar, malted barley, malt syrup)
 - Brewer's yeast; beer (unless certified GF, prefer avoiding entirely)
 

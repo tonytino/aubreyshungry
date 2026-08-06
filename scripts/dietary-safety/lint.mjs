@@ -20,6 +20,16 @@
  * Globs are resolved against the current working directory. When no matching
  * files exist (e.g. `content/` hasn't been created yet), the linter exits 0
  * with a "nothing to scan" note — absence of content is not a violation.
+ * Any file under `content/` that the scan globs do NOT cover is a hard error:
+ * food content must never silently escape the gate. Symlinks are followed.
+ *
+ * Explicit NON-GOALS (threat model: cooperative-but-fallible generation, not
+ * deliberate evasion — human review of food content stays mandatory):
+ * - Unicode homoglyphs or diacritic tricks (e.g. "cashéw") are not detected.
+ * - Soft hyphens or zero-width characters inside a term are not detected.
+ * - Terms split across NON-adjacent JSON values or across files are not
+ *   detected (adjacent string-array items like ["soy","sauce"] ARE joined
+ *   and scanned).
  */
 
 import * as fs from "node:fs";
@@ -105,7 +115,9 @@ export function globToRegExp(glob) {
       i += 1;
     }
   }
-  return new RegExp(`^${out}$`);
+  // Case-insensitive: content/Sneaky.JSON must match content/**/*.json — a
+  // surprising extension case must widen the scan, never silently narrow it.
+  return new RegExp(`^${out}$`, "i");
 }
 
 /**
@@ -118,21 +130,45 @@ export function collectFiles(root, globs) {
   const regexps = globs.map(globToRegExp);
   /** @type {string[]} */
   const matches = [];
+  /** Real paths already walked — guards against symlink cycles. @type {Set<string>} */
+  const visited = new Set();
   /** @param {string} dir */
   const walk = (dir) => {
+    /** @type {string} */
+    let real;
+    try {
+      real = fs.realpathSync(dir);
+    } catch {
+      return; // Broken link or vanished directory — nothing to scan there.
+    }
+    if (visited.has(real)) return;
+    visited.add(real);
     /** @type {fs.Dirent[]} */
     let entries;
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch {
-      return; // Unreadable or vanished directory — nothing to scan there.
+      return; // Unreadable directory — nothing to scan there.
     }
     for (const entry of entries) {
-      if (entry.name.startsWith(".") && entry.name !== ".") continue;
+      if (entry.name.startsWith(".")) continue;
       const absolute = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
+      let isDirectory = entry.isDirectory();
+      let isFile = entry.isFile();
+      if (entry.isSymbolicLink()) {
+        // Follow symlinks: a linked file or directory must never silently
+        // escape the scan (a dirent symlink is neither isFile nor isDirectory).
+        try {
+          const stat = fs.statSync(absolute);
+          isDirectory = stat.isDirectory();
+          isFile = stat.isFile();
+        } catch {
+          continue; // Broken symlink — nothing behind it to scan.
+        }
+      }
+      if (isDirectory) {
         if (!IGNORED_DIRS.has(entry.name)) walk(absolute);
-      } else if (entry.isFile()) {
+      } else if (isFile) {
         const relative = path.relative(root, absolute).split(path.sep).join("/");
         if (regexps.some((re) => re.test(relative))) matches.push(relative);
       }
@@ -250,11 +286,61 @@ function scanJsonValue(file, value, jsonPath, findings) {
     for (let i = 0; i < value.length; i++) {
       scanJsonValue(file, value[i], `${jsonPath}[${i}]`, findings);
     }
+    scanAdjacentStrings(file, value, jsonPath, findings);
   } else if (value !== null && typeof value === "object") {
     for (const [key, child] of Object.entries(value)) {
       scanString(key, `${jsonPath}.${key} (key)`);
       scanJsonValue(file, child, `${jsonPath}.${key}`, findings);
     }
+  }
+}
+
+/**
+ * Extra pass over an array: join each run of adjacent string items with a
+ * space and scan the joined text, so an ingredient split across items
+ * (["soy", "sauce"]) is still caught. Hits contained entirely within a single
+ * item are skipped — the per-item scan already reported those.
+ * @param {string} file Relative path, used in findings.
+ * @param {unknown[]} value
+ * @param {string} jsonPath
+ * @param {Finding[]} findings
+ */
+function scanAdjacentStrings(file, value, jsonPath, findings) {
+  let runStart = 0;
+  while (runStart < value.length) {
+    if (typeof value[runStart] !== "string") {
+      runStart++;
+      continue;
+    }
+    let runEnd = runStart;
+    while (runEnd + 1 < value.length && typeof value[runEnd + 1] === "string") runEnd++;
+    if (runEnd > runStart) {
+      const items = /** @type {string[]} */ (value.slice(runStart, runEnd + 1));
+      /** @type {number[]} Offset of each item within the joined text. */
+      const starts = [];
+      let offset = 0;
+      for (const item of items) {
+        starts.push(offset);
+        offset += item.length + 1; // +1 for the joining space
+      }
+      for (const hit of scanText(items.join(" "))) {
+        const end = hit.index + hit.matched.length;
+        let first = 0;
+        while (first + 1 < starts.length && starts[first + 1] <= hit.index) first++;
+        let last = 0;
+        while (last + 1 < starts.length && starts[last + 1] < end) last++;
+        if (first === last) continue; // Contained in one item — already reported.
+        findings.push({
+          file,
+          location: `${jsonPath}[${runStart + first}..${runStart + last}] (adjacent strings)`,
+          matched: hit.matched,
+          label: hit.label,
+          rule: hit.rule,
+          substitute: hit.substitute,
+        });
+      }
+    }
+    runStart = runEnd + 1;
   }
 }
 
@@ -284,9 +370,13 @@ export function scanFile(root, file) {
 
 /**
  * Run the linter over `root` with the given globs.
+ *
+ * `unscanned` lists files under `content/` that no scan glob covers — those
+ * are a hard error for the CLI: everything under `content/` is food content,
+ * and food content must never silently escape the gate.
  * @param {string} root Absolute directory to scan.
  * @param {string[]} [globs]
- * @returns {{ files: string[], findings: Finding[] }}
+ * @returns {{ files: string[], findings: Finding[], unscanned: string[] }}
  */
 export function lint(root, globs = DEFAULT_GLOBS) {
   const files = collectFiles(root, globs);
@@ -295,7 +385,9 @@ export function lint(root, globs = DEFAULT_GLOBS) {
   for (const file of files) {
     findings.push(...scanFile(root, file));
   }
-  return { files, findings };
+  const scanned = new Set(files);
+  const unscanned = collectFiles(root, ["content/**"]).filter((file) => !scanned.has(file));
+  return { files, findings, unscanned };
 }
 
 /**
@@ -310,25 +402,41 @@ export function formatFinding(finding) {
 }
 
 /**
- * CLI entry. Exits 0 when nothing to scan or no hits; 1 on any hit.
+ * CLI entry. Exits 0 when nothing to scan or no hits; 1 on any hit or on any
+ * file under `content/` that the scan globs fail to cover.
  * @param {string[]} argv Glob arguments (empty → DEFAULT_GLOBS).
  */
 function main(argv) {
   const globs = argv.length > 0 ? argv : DEFAULT_GLOBS;
   const root = process.cwd();
-  const { files, findings } = lint(root, globs);
+  const { files, findings, unscanned } = lint(root, globs);
+
+  if (unscanned.length > 0) {
+    console.error(
+      `Dietary safety linter: ${unscanned.length} file(s) under content/ escape the scan globs — all food content must be scannable:\n`
+    );
+    for (const file of unscanned) {
+      console.error(`  ✗ ${file} (not covered by [${globs.join(", ")}])`);
+    }
+    console.error("\nUse .json/.md for food content, or extend the scan globs.\n");
+    process.exitCode = 1;
+  }
 
   if (files.length === 0) {
-    console.log(
-      `Dietary safety linter: no content found matching [${globs.join(", ")}] — nothing to scan.`
-    );
+    if (unscanned.length === 0) {
+      console.log(
+        `Dietary safety linter: no content found matching [${globs.join(", ")}] — nothing to scan.`
+      );
+    }
     return;
   }
 
   if (findings.length === 0) {
-    console.log(
-      `✓ Dietary safety linter: ${files.length} file(s) scanned, no forbidden ingredients found.`
-    );
+    if (unscanned.length === 0) {
+      console.log(
+        `✓ Dietary safety linter: ${files.length} file(s) scanned, no forbidden ingredients found.`
+      );
+    }
     return;
   }
 
