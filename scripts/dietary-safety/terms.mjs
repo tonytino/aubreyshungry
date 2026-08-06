@@ -55,7 +55,7 @@ export const FORBIDDEN_GLUTEN = [
   {
     pattern: /\bmalt(?:ed|s)?\b/gi,
     label: "malt (any form: malt extract/vinegar/syrup, malted grain)",
-    substitute: "apple-cider vinegar (for malt vinegar); maple syrup or honey (for malt syrup)",
+    substitute: "apple-cider vinegar, or maple syrup/honey, depending on use",
   },
   {
     pattern: /\bbeers?\b/gi,
@@ -145,6 +145,120 @@ export const FORBIDDEN_GLUTEN = [
     label: "matzo (wheat)",
     substitute: "certified-GF matzo-style crackers",
   },
+  // Wheat staples: flours, breads, and bread products (wheat unless stated).
+  {
+    pattern:
+      /\b(?:all[\s-]*purpose|self[\s-]*(?:ris|rais)ing|bread|cake|pastry|plain|00)[\s-]+flours?\b/gi,
+    label: "wheat flour (all-purpose/bread/cake/pastry/self-rising/plain/00)",
+    substitute: "GF 1:1 flour blend",
+  },
+  {
+    pattern: /\bflour[\s-]+tortillas?\b/gi,
+    label: "flour tortilla (wheat)",
+    substitute: "corn tortillas (certified GF)",
+  },
+  {
+    pattern: /\bbread[\s-]*crumbs?\b/gi,
+    label: "breadcrumbs (wheat)",
+    substitute: "certified-GF breadcrumbs, or crushed GF rice crackers",
+  },
+  {
+    pattern: /\bcroutons?\b/gi,
+    label: "croutons (wheat bread)",
+    substitute: "toasted certified-GF bread cubes",
+  },
+  {
+    pattern: /\bpretzels?\b/gi,
+    label: "pretzel (wheat)",
+    substitute: "certified-GF pretzels",
+  },
+  {
+    pattern: /\bcroissants?\b/gi,
+    label: "croissant (wheat pastry)",
+    substitute: "certified-GF pastry, or omit",
+  },
+  {
+    pattern: /\bbaguettes?\b/gi,
+    label: "baguette (wheat bread)",
+    substitute: "certified-GF baguette",
+  },
+  {
+    pattern: /\bbrioches?\b/gi,
+    label: "brioche (wheat bread)",
+    substitute: "certified-GF bread",
+  },
+  {
+    pattern: /\bchallahs?\b/gi,
+    label: "challah (wheat bread)",
+    substitute: "certified-GF bread",
+  },
+  {
+    pattern: /\bnaans?\b/gi,
+    label: "naan (wheat flatbread)",
+    substitute: "certified-GF naan, or corn tortillas (certified GF)",
+  },
+  {
+    pattern: /\bpitas?\b/gi,
+    label: "pita (wheat flatbread)",
+    substitute: "certified-GF pita, or corn tortillas (certified GF)",
+  },
+  {
+    pattern: /\bbagels?\b/gi,
+    label: "bagel (wheat)",
+    substitute: "certified-GF bagel",
+  },
+  {
+    pattern: /\bfocaccias?\b/gi,
+    label: "focaccia (wheat bread)",
+    substitute: "certified-GF bread",
+  },
+  {
+    pattern: /\bciabattas?\b/gi,
+    label: "ciabatta (wheat bread)",
+    substitute: "certified-GF bread",
+  },
+  {
+    pattern: /\bsourdoughs?\b/gi,
+    label: "sourdough (wheat unless stated)",
+    substitute: "certified-GF sourdough",
+  },
+];
+
+/**
+ * Rule 1 tier 2 — staples that are wheat by default and must ALWAYS be
+ * written with an explicit GF qualifier (the doc: "always name the GF
+ * substitute explicitly"). Scanned AFTER the specific gluten and allergen
+ * sets, so precise entries ("flour tortilla", "cashew flour") report first.
+ * Safe qualified phrasings ("GF 1:1 flour blend", "brown-rice pasta",
+ * "corn tortillas") are ALLOWLIST entries and never trigger these.
+ * @type {ForbiddenTerm[]}
+ */
+export const NEEDS_QUALIFIER = [
+  {
+    pattern: /\bflours?\b/gi,
+    label: "flour (unqualified — assume wheat)",
+    substitute: "GF 1:1 flour blend, or a named GF flour (almond, rice, chickpea, coconut)",
+  },
+  {
+    pattern: /\bpastas?\b/gi,
+    label: "pasta (unqualified — assume wheat)",
+    substitute: "brown-rice or chickpea pasta, or another named GF pasta",
+  },
+  {
+    pattern: /\bbreads?\b/gi,
+    label: "bread (unqualified — assume wheat)",
+    substitute: "certified gluten-free bread (named explicitly)",
+  },
+  {
+    pattern: /\bnoodles?\b/gi,
+    label: "noodles (unqualified — assume wheat)",
+    substitute: "rice noodles or zucchini noodles",
+  },
+  {
+    pattern: /\btortillas?\b/gi,
+    label: "tortillas (unqualified — assume wheat)",
+    substitute: "corn tortillas (certified GF)",
+  },
 ];
 
 /** Rule 2 — cashew/pistachio (life-threatening allergy). @type {ForbiddenTerm[]} */
@@ -195,7 +309,7 @@ export const FORBIDDEN_NUT = [
   {
     pattern: /\bmixed[\s-]*nuts?\b/gi,
     label: "mixed nuts (cross-contact risk)",
-    substitute: "single-nut products from dedicated cashew/pistachio-free processing",
+    substitute: "single-nut products from a dedicated allergen-safe facility",
   },
   {
     pattern: /\btrail[\s-]*mix(?:es)?\b/gi,
@@ -205,12 +319,12 @@ export const FORBIDDEN_NUT = [
   {
     pattern: /\bbaklavas?\b/gi,
     label: "baklava-style dessert (traditionally pistachio/walnut — cross-contact risk)",
-    substitute: "dessert with allowed nuts (e.g. walnuts) from cashew/pistachio-free processing",
+    substitute: "dessert with allowed nuts (e.g. walnuts) from a dedicated allergen-safe facility",
   },
   {
     pattern: /\bkormas?\b/gi,
     label: "korma (commonly cashew-thickened — verify/adapt)",
-    substitute: "adapt: thicken with coconut cream or sunflower-seed butter instead of cashews",
+    substitute: "adapt: thicken with coconut cream or sunflower-seed butter, never nut-based",
   },
 ];
 
@@ -226,13 +340,24 @@ export const ALLOWLIST = [
   // this; listed for explicitness and belt-and-braces safety).
   /\bbuckwheat\b/gi,
   // 100% buckwheat soba is the only acceptable soba phrasing.
-  /\b(?:100%[\s-]*)?buckwheat[\s-]+sobas?\b/gi,
-  // Negations / the safety phrasing itself (incl. closed compounds).
-  /\bwheat[\s-]*free\b/gi,
-  /\bgluten[\s-]*free\b/gi,
+  /\b(?:100%[\s-]*)?buckwheat[\s-]+sobas?(?:[\s-]+noodles?)?\b/gi,
+  // Negations / the safety phrasing itself (incl. closed compounds). The
+  // lookahead stops over-masking "wheat free-range" style run-ons: "free"
+  // followed by a hyphenated word is not a negation of the grain.
+  /\bwheat[\s-]*free\b(?!-\w)/gi,
+  /\bgluten[\s-]*free\b(?!-\w)/gi,
   // The only acceptable oats phrasing (mask before the bare-"oats" trap).
   /\bcertified[\s-]+gluten[\s-]*free[\s-]+oat(?:s|meal|en|cakes?)?\b/gi,
   /\bcertified[\s-]+gf[\s-]+oat(?:s|meal|en|cakes?)?\b/gi,
+  // Doc-mandated safe phrasings for staples — the exact wordings this
+  // linter's own substitutes recommend must never re-trip the linter.
+  /\b(?:certified[\s-]+)?(?:gf|gluten[\s-]*free)[\s-]+(?:1[\s-]*:[\s-]*1[\s-]+)?flours?(?:[\s-]+blends?)?\b/gi,
+  /\b(?:certified[\s-]+)?(?:gf|gluten[\s-]*free)[\s-]+(?:bread[\s-]*crumbs?|breads?|pastas?|noodles?|tortillas?|croutons?|pretzels?|pankos?|orzos?|pitas?|bagels?|naans?|baguettes?|sourdoughs?|focaccias?|ciabattas?|matzo[\s-]*style|graham[\s-]*style)\b/gi,
+  /\b(?:brown[\s-]*)?rice[\s-]+(?:pastas?|noodles?|ramen|flours?)\b/gi,
+  /\b(?:almond|chickpea|coconut|cassava|buckwheat|sorghum|millet|quinoa|corn|tapioca|potato|lentil)[\s-]+flours?\b/gi,
+  /\b(?:chickpea|lentil|red[\s-]*lentil|quinoa)[\s-]+pastas?\b/gi,
+  /\bcorn[\s-]+tortillas?\b/gi,
+  /\b(?:zucchini|shirataki|kelp)[\s-]+noodles?\b/gi,
 ];
 
 /**
@@ -243,4 +368,8 @@ export const ALLOWLIST = [
 export const RULE_SETS = [
   { rule: "Rule 1: 100% gluten-free", terms: FORBIDDEN_GLUTEN },
   { rule: "Rule 2: no cashews/pistachios (life-threatening allergy)", terms: FORBIDDEN_NUT },
+  {
+    rule: "Rule 1: 100% gluten-free (unqualified staple — name the GF variant)",
+    terms: NEEDS_QUALIFIER,
+  },
 ];

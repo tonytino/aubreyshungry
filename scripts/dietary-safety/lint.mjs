@@ -23,6 +23,10 @@
  * Any file under `content/` that the scan globs do NOT cover is a hard error:
  * food content must never silently escape the gate. Symlinks are followed.
  *
+ * Markdown emphasis/code markers (*, _, `, ~) are normalized to spaces before
+ * matching, so "**soy** sauce" cannot defeat a multi-word term. Dot-files are
+ * scanned (content/.hidden.md included); dot-directories are not walked.
+ *
  * Explicit NON-GOALS (threat model: cooperative-but-fallible generation, not
  * deliberate evasion — human review of food content stays mandatory):
  * - Unicode homoglyphs or diacritic tricks (e.g. "cashéw") are not detected.
@@ -44,6 +48,12 @@ export const DEFAULT_GLOBS = [
   "**/fixtures/**/*.json",
   "**/fixtures/**/*.md",
 ];
+
+/**
+ * Housekeeping files that may sit under content/ without triggering the
+ * unscanned-file hard error (they carry no food content).
+ */
+const UNSCANNED_EXEMPT = new Set([".gitkeep", ".DS_Store"]);
 
 /** Directories never worth walking (build output, deps, VCS). */
 const IGNORED_DIRS = new Set([
@@ -151,7 +161,6 @@ export function collectFiles(root, globs) {
       return; // Unreadable directory — nothing to scan there.
     }
     for (const entry of entries) {
-      if (entry.name.startsWith(".")) continue;
       const absolute = path.join(dir, entry.name);
       let isDirectory = entry.isDirectory();
       let isFile = entry.isFile();
@@ -167,8 +176,10 @@ export function collectFiles(root, globs) {
         }
       }
       if (isDirectory) {
-        if (!IGNORED_DIRS.has(entry.name)) walk(absolute);
+        // Dot-DIRECTORIES (VCS/tooling internals) and build dirs are skipped.
+        if (!entry.name.startsWith(".") && !IGNORED_DIRS.has(entry.name)) walk(absolute);
       } else if (isFile) {
+        // Dot-FILES are NOT skipped: content/.hidden.md must not escape.
         const relative = path.relative(root, absolute).split(path.sep).join("/");
         if (regexps.some((re) => re.test(relative))) matches.push(relative);
       }
@@ -212,7 +223,12 @@ export function maskAllowlisted(text) {
  * @returns {{ index: number, matched: string, label: string, rule: string, substitute: string | undefined }[]}
  */
 export function scanText(text) {
-  let working = maskAllowlisted(text);
+  // Normalize Markdown emphasis/code markers to spaces (same length, so
+  // offsets and line numbers stay exact) BEFORE any matching: "**soy** sauce",
+  // "soy `sauce`", or "brewers *yeast*" must not defeat multi-word terms, and
+  // "certified **gluten-free** oats" must still be recognized as safe. This
+  // also lets snake_case JSON keys ("soy_sauce") match.
+  let working = maskAllowlisted(text.replace(/[*_`~]/g, " "));
   /** @type {{ index: number, matched: string, label: string, rule: string, substitute: string | undefined }[]} */
   const hits = [];
   for (const { rule, terms } of RULE_SETS) {
@@ -354,7 +370,9 @@ function scanAdjacentStrings(file, value, jsonPath, findings) {
  */
 export function scanFile(root, file) {
   const text = fs.readFileSync(path.join(root, file), "utf-8");
-  if (file.endsWith(".json")) {
+  // Case-insensitive extension check: Sneaky.JSON gets structural scanning
+  // (JSON paths + adjacent-string joins), not the weaker prose fallback.
+  if (file.toLowerCase().endsWith(".json")) {
     try {
       const parsed = JSON.parse(text);
       /** @type {Finding[]} */
@@ -386,7 +404,9 @@ export function lint(root, globs = DEFAULT_GLOBS) {
     findings.push(...scanFile(root, file));
   }
   const scanned = new Set(files);
-  const unscanned = collectFiles(root, ["content/**"]).filter((file) => !scanned.has(file));
+  const unscanned = collectFiles(root, ["content/**"]).filter(
+    (file) => !scanned.has(file) && !UNSCANNED_EXEMPT.has(path.posix.basename(file))
+  );
   return { files, findings, unscanned };
 }
 

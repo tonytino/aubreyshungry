@@ -38,6 +38,14 @@ Forbidden grains and derivatives — never include, in any form:
 - Wheat-based products in any form: panko, orzo, udon, ramen, graham
   (flour/crackers), farina, phyllo (filo), matzo; soba noodles unless
   100% buckwheat (certified GF)
+- Wheat flours and breads: all-purpose/bread/cake/pastry/self-rising/plain/00
+  flour, flour tortillas, breadcrumbs, croutons, pretzels, croissants,
+  baguette, brioche, challah, naan, pita, bagel, focaccia, ciabatta, sourdough
+  (all wheat unless a certified-GF version is named)
+- Bare "flour," "pasta," "bread," "noodles," and "tortillas" are treated as
+  wheat: always write the GF qualifier (e.g. "GF 1:1 flour blend,"
+  "brown-rice pasta," "certified gluten-free bread," "rice noodles," "corn
+  tortillas (certified GF)") — the linter flags the unqualified words
 - Vital wheat gluten; seitan (pure wheat gluten)
 - Malt in all forms (malt extract, malt vinegar, malted barley, malt syrup)
 - Brewer's yeast; beer (unless certified GF, prefer avoiding entirely)
