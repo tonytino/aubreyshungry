@@ -116,9 +116,19 @@ Minimize (use sparingly, never as the base of a plan):
 
 - **Every PR containing food content** must state in its body how the three
   golden rules were checked.
-- A deterministic **forbidden-ingredient linter** (CI gate scanning all plan
-  and recipe content for gluten and cashew/pistachio terms and their aliases)
-  is a planned foundational feature — until it exists, human review of food
-  content is mandatory: label food-content PRs `safe:human`.
+- A deterministic **forbidden-ingredient linter** is live. It lives in
+  `scripts/dietary-safety/` (`terms.mjs` holds the term lists, `lint.mjs` the
+  scanner) and runs as the "Dietary safety linter" CI job on every push and
+  PR. Run it locally with `pnpm lint:dietary`. It scans all food content
+  (`content/**/*.{json,md}` plus `**/fixtures/**` food-content fixtures —
+  both structured JSON values/keys and prose) for gluten and
+  cashew/pistachio terms and their aliases, and fails on any hit with the
+  matched term, the rule violated, and a suggested safe substitute.
+- **The term lists in `scripts/dietary-safety/terms.mjs` must be kept in sync
+  with this doc** — it is the machine-readable mirror of these rules. Any
+  change to either (including the allowlist of known false positives) is
+  owner-gated: `safe:human`, @tonytino review, no exceptions.
+- The linter is a floor, not a substitute for judgment: human review of food
+  content remains mandatory — label food-content PRs `safe:human`.
 - The adversarial review loop (`docs/agents/orchestration.md`) includes
   **Dietary safety** as a mandatory review dimension.
