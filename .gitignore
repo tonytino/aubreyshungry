@@ -18,5 +18,9 @@ coverage/
 app/routeTree.gen.ts
 app.config.timestamp_*
 
-# Claude Code
-.claude/
+# Claude Code — ignore session-local state (worktrees, settings.local.json)
+# but track the shared orchestration tooling (same pattern as aubreyslist).
+.claude/*
+!.claude/skills/
+!.claude/workflows/
+!.claude/settings.json
