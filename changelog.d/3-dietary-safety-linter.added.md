@@ -1,2 +1,2 @@
 - `[propagate]` Added a deterministic forbidden-ingredient dietary-safety linter (`scripts/dietary-safety/`, run via `pnpm lint:dietary`) that scans all food content — structured JSON and prose — for gluten and cashew/pistachio terms with word-boundary-aware, allowlist-guarded matching, and suggests safe substitutes on every hit.
-- `[propagate]` Added a "Dietary safety linter" CI job gating every push and PR on `pnpm lint:dietary`.
+- `[propagate]` Added a "Dietary safety linter" CI job gating every PR and push to main on `pnpm lint:dietary`.

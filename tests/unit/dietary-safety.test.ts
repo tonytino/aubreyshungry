@@ -23,7 +23,10 @@ const { DEFAULT_GLOBS, collectFiles, formatFinding, lint, scanFile, scanText } =
   DEFAULT_GLOBS: string[];
   collectFiles: (root: string, globs: string[]) => string[];
   formatFinding: (finding: Finding) => string;
-  lint: (root: string, globs?: string[]) => { files: string[]; findings: Finding[] };
+  lint: (
+    root: string,
+    globs?: string[]
+  ) => { files: string[]; findings: Finding[]; unscanned: string[] };
   scanFile: (root: string, file: string) => Finding[];
   scanText: (text: string) => Hit[];
 };
@@ -346,6 +349,214 @@ describe("formatFinding", () => {
     expect(line).toContain("soy sauce");
     expect(line).toContain("Rule 1");
     expect(line).toContain("certified-GF tamari or coconut aminos");
+  });
+});
+
+describe("whitespace-tolerant multi-word matching (review regression)", () => {
+  it.each([
+    ["soy sauce with double space", "soy  sauce"],
+    ["soy sauce with tab", "soy\tsauce"],
+    ["line-wrapped soy sauce", "stir in the soy\nsauce and simmer"],
+    ["closed-compound soysauce", "add soysauce"],
+    ["brewer's yeast with double space", "brewer's  yeast"],
+    ["pink peppercorns with tab", "pink\tpeppercorns"],
+    ["mixed nuts with double space", "mixed  nuts"],
+    ["line-wrapped trail mix", "pack some trail\nmix"],
+    ["line-wrapped cashew cream", "blend the cashew\ncream"],
+  ])("catches %s", (_name, phrase) => {
+    expect(scanText(phrase).length).toBeGreaterThan(0);
+  });
+});
+
+describe("closed compounds and inflections (review regression)", () => {
+  it.each([
+    ["cashewnut", "cashewnut brittle"],
+    ["cashewnuts", "a bag of cashewnuts"],
+    ["wholewheat", "wholewheat rolls"],
+    ["wheatberries", "cooked wheatberries"],
+    ["wheatgerm", "sprinkle of wheatgerm"],
+    ["wheatgrass", "wheatgrass shot"],
+    ["wheaten", "wheaten loaf"],
+    ["wheats", "ancient wheats"],
+    ["oaten", "oaten biscuits"],
+  ])("catches %s", (_name, phrase) => {
+    expect(scanText(phrase).length).toBeGreaterThan(0);
+  });
+
+  it("still never flags buckwheat despite the expanded wheat matching", () => {
+    expect(scanText("buckwheat groats, buckwheat flour, Buckwheat pancakes")).toEqual([]);
+  });
+});
+
+describe("doc-listed terms added after review (baklava, korma, bare gluten)", () => {
+  it("catches baklava (doc: baklava-style desserts)", () => {
+    const hits = scanText("baklava bars for dessert");
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.rule).toMatch(/cashews\/pistachios/);
+  });
+
+  it("catches korma with verify/adapt guidance", () => {
+    const hits = scanText("chicken korma night");
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.label).toMatch(/commonly cashew-thickened — verify\/adapt/);
+    expect(hits[0]?.substitute).toMatch(/coconut cream|sunflower-seed butter/);
+  });
+
+  it('catches bare gluten ("add vital gluten")', () => {
+    const hits = scanText("add vital gluten for structure");
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.matched.toLowerCase()).toBe("gluten");
+  });
+
+  it("catches vital wheat gluten (both wheat and gluten hits)", () => {
+    const matched = scanText("vital wheat gluten").map((h) => h.matched.toLowerCase());
+    expect(matched).toContain("wheat");
+    expect(matched).toContain("gluten");
+  });
+
+  it('still keeps "a gluten-free kitchen" clean', () => {
+    expect(scanText("a gluten-free kitchen")).toEqual([]);
+  });
+});
+
+describe("common wheat-product vocabulary (review regression)", () => {
+  it.each([
+    ["panko", "panko crust"],
+    ["orzo", "orzo salad"],
+    ["udon", "udon stir-fry"],
+    ["ramen", "quick ramen bowl"],
+    ["soba", "soba noodles"],
+    ["graham", "graham cracker base"],
+    ["farina", "warm farina"],
+    ["phyllo", "phyllo cups"],
+    ["filo", "filo pastry"],
+    ["matzo", "matzo ball soup"],
+    ["matzah", "matzah crackers"],
+  ])("catches %s", (_name, phrase) => {
+    const hits = scanText(phrase);
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0]?.rule).toMatch(/gluten-free/);
+  });
+
+  it("does not flag 100% buckwheat soba (the only safe soba phrasing)", () => {
+    expect(scanText("100% buckwheat soba (certified GF)")).toEqual([]);
+    expect(scanText("buckwheat soba noodles")).toEqual([]);
+  });
+});
+
+describe("case-insensitive glob matching (review regression)", () => {
+  it("scans content/Sneaky.JSON despite the uppercase extension", () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(path.join(root, "content", "Sneaky.JSON"), JSON.stringify({ s: "cashews" }));
+    const { files, findings, unscanned } = lint(root);
+    expect(files).toEqual(["content/Sneaky.JSON"]);
+    expect(unscanned).toEqual([]);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.label).toMatch(/cashew/);
+    const { code, output } = runCli(root);
+    expect(code).toBe(1);
+    expect(output).toContain("Sneaky.JSON");
+  });
+});
+
+describe("unscanned files under content/ hard-fail (review regression)", () => {
+  it("lint() reports content files no glob covers", () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(path.join(root, "content", "notes.txt"), "secret cashew stash");
+    const { files, unscanned } = lint(root);
+    expect(files).toEqual([]);
+    expect(unscanned).toEqual(["content/notes.txt"]);
+  });
+
+  it("CLI exits 1 and names the escaping file instead of claiming nothing to scan", () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(path.join(root, "content", "notes.txt"), "secret cashew stash");
+    const { code, output } = runCli(root);
+    expect(code).toBe(1);
+    expect(output).toContain("content/notes.txt");
+    expect(output).toMatch(/escape the scan globs/);
+    expect(output).not.toMatch(/nothing to scan/);
+  });
+});
+
+describe("symlinks are followed (review regression)", () => {
+  it("scans a content/ symlink pointing outside the scan root", () => {
+    const outside = makeTempRoot();
+    fs.writeFileSync(path.join(outside, "evil.md"), "pistachio gelato\n");
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.symlinkSync(path.join(outside, "evil.md"), path.join(root, "content", "linked.md"));
+    const { files, findings } = lint(root);
+    expect(files).toEqual(["content/linked.md"]);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.label).toMatch(/pistachio/);
+  });
+});
+
+describe("adjacent JSON string items are joined and scanned (review bonus)", () => {
+  it('catches ["soy", "sauce"] split across array items', () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(
+      path.join(root, "content", "split.json"),
+      JSON.stringify({ steps: ["soy", "sauce"] })
+    );
+    const findings = scanFile(root, "content/split.json");
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.location).toBe("$.steps[0..1] (adjacent strings)");
+    expect(findings[0]?.matched.toLowerCase()).toBe("soy sauce");
+  });
+
+  it("does not duplicate hits already contained in a single item", () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(
+      path.join(root, "content", "single.json"),
+      JSON.stringify({ steps: ["add farro", "then rest"] })
+    );
+    const findings = scanFile(root, "content/single.json");
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.location).toBe("$.steps[0]");
+  });
+});
+
+describe("reviewer's combined attack fixture", () => {
+  it("fails with hits for every planted term", () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(
+      path.join(root, "content", "attack.md"),
+      [
+        "# Snack ideas",
+        "baklava bars",
+        "cashewnut brittle",
+        "wholewheat rolls",
+        "soy  sauce glaze",
+        "drizzle of soy",
+        "sauce from the wok", // line-wrapped "soy\nsauce" across these two lines
+        "wheaten crackers with wheatgerm and a wheatgrass shot",
+      ].join("\n")
+    );
+    fs.writeFileSync(path.join(root, "content", "Sneaky.JSON"), JSON.stringify({ s: "cashews" }));
+    const { code, output } = runCli(root);
+    expect(code).toBe(1);
+    for (const planted of [
+      "baklava",
+      "cashewnut",
+      "wholewheat",
+      "soy  sauce",
+      "wheaten",
+      "wheatgerm",
+      "wheatgrass",
+      "Sneaky.JSON",
+      "cashews",
+    ]) {
+      expect(output).toContain(planted);
+    }
+    expect(output).not.toMatch(/no forbidden ingredients/);
   });
 });
 
