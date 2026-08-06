@@ -1,0 +1,133 @@
+name: PR conventions
+
+# Enforces the PR-level conventions (Conventional Commit title + the review and
+# owner gates). These live in their own workflow — separate from ci.yml —
+# because they must react to events ci.yml does not care about: `edited` (the
+# author fixed the PR title or pasted the review verdict) and
+# `labeled`/`unlabeled` (the author added a required label after opening). With
+# the default pull_request trigger these checks would run once at open, before
+# labels exist, and never re-evaluate.
+#
+# Pattern ported and adapted from the sibling repo aubreyslist
+# (.github/workflows/pr-conventions.yml).
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+
+# Least privilege: only needs to read the repo.
+permissions:
+  contents: read
+
+# Cancel superseded runs for the same PR (e.g. rapid label/title edits).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: Conventional PR title
+    # Squash-merge promotes the PR title to the commit message, so the title
+    # itself must follow this repo's `type: description` commit convention
+    # (docs/agents/tasks.md). Zero-dependency by design (Hard Rule: no new
+    # dependencies): a plain regex instead of commitlint.
+    runs-on: ubuntu-latest
+
+    steps:
+      # Pass the title via env (not inline ${{ }}) to avoid shell injection via
+      # an attacker-controlled PR title.
+      - name: Check the PR title against the conventional-commit format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          RE='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9./-]+\))?!?: .+'
+          if printf '%s' "$PR_TITLE" | grep -qE "$RE"; then
+            echo "✓ PR title follows the conventional-commit format"
+          else
+            echo "::error::PR title '$PR_TITLE' is not a Conventional Commit. Use 'type: description' (types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert), e.g. 'feat: add snack section to weekly plan'. See docs/agents/tasks.md."
+            exit 1
+          fi
+
+  adversarial-review:
+    name: Adversarial review gate
+    # Enforces the 2-round adversarial review loop in docs/agents/orchestration.md.
+    # This re-evaluates on `labeled`/`unlabeled` (author added the gate label) and
+    # `edited` (author pasted the verdict into the body) thanks to the triggers above.
+    #
+    # `skip-review` bypasses the gate (trivial / human-only change). Otherwise BOTH
+    # must hold: the `review:adversarial-passed` label is present AND the PR body
+    # contains a well-formed review record (validated by check-review-block.mjs).
+    runs-on: ubuntu-latest
+
+    steps:
+      # Wrap the joined label list in delimiting commas and match a full
+      # ',<name>,' boundary so a label that merely contains the name as a
+      # substring can't satisfy the gate.
+      - name: Short-circuit when skip-review is present
+        env:
+          HAS_SKIP: ${{ contains(format(',{0},', join(github.event.pull_request.labels.*.name, ',')), ',skip-review,') }}
+        run: |
+          if [ "$HAS_SKIP" = "true" ]; then
+            echo "✓ skip-review label present — adversarial-review gate bypassed (trivial/human-only change)."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          else
+            echo "SKIP=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Require the review:adversarial-passed label
+        if: env.SKIP != 'true'
+        env:
+          HAS_REVIEWED: ${{ contains(format(',{0},', join(github.event.pull_request.labels.*.name, ',')), ',review:adversarial-passed,') }}
+        run: |
+          if [ "$HAS_REVIEWED" != "true" ]; then
+            echo "::error::Missing the \`review:adversarial-passed\` label. Run the 2-round adversarial review loop, then apply the label — or apply \`skip-review\` for a trivial/human-only change (see docs/agents/orchestration.md)."
+            exit 1
+          fi
+          echo "✓ review:adversarial-passed label present"
+
+      # The parser is a zero-dep ESM script; node is already on ubuntu-latest, so
+      # we only need a checkout to read the script file — no pnpm/setup-node/install.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        if: env.SKIP != 'true'
+
+      # Pass the body via env (not inline ${{ }}) to avoid shell injection via a
+      # attacker-controlled PR body — exactly like pr-title passes the title.
+      - name: Validate the adversarial-review block in the PR body
+        if: env.SKIP != 'true'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node .github/scripts/check-review-block.mjs
+
+  owner-review:
+    name: Owner-review gate
+    # Layer 2 of the owner-review guardrail (docs/agents/governance.md).
+    # FAILS the PR when it touches an owner-gated surface (dietary safety / cost
+    # / legal / security / data-loss migration / process-config) but is NOT
+    # labeled `safe:human` — i.e. an agent tried to self-classify it
+    # `safe:agent` (auto-mergeable). Re-evaluates on `labeled`/`unlabeled` (the
+    # triggers above), so relabeling `safe:human` re-runs it.
+    #
+    # This is a forcing function; the ENFORCEMENT is Layer 1 (.github/CODEOWNERS
+    # + branch protection), which makes an owned-path PR unmergeable until the
+    # owner approves. There is deliberately NO bypass label (unlike skip-review):
+    # the only way past a gated change is the owner's own review + merge.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # fetch-depth: 0 so the merge-base against the PR base resolves (the gate
+      # diffs base…HEAD to find this PR's changed files + added lines).
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      # Zero-dep ESM script; node is already on ubuntu-latest, so (like
+      # adversarial-review) we only need a checkout — no pnpm/setup-node/install.
+      # Labels are passed via env (comma-joined; label names never contain
+      # commas), NOT inline ${{ }}, so a hostile label can't inject into the
+      # shell. BASE_SHA drives the merge-base diff.
+      - name: Enforce owner review on gated surfaces
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          OWNER_REVIEW_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: node .github/scripts/check-owner-review.mjs
