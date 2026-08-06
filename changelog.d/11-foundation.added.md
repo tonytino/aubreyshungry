@@ -1,0 +1,3 @@
+- `[manual]` Initialize aubreyshungry from construct v0.3.0 with the agent-first foundation: dietary-safety golden rules, nutrition guidelines, governance + CODEOWNERS, orchestration playbook, generation pipeline design, and the GitHub Issues task state machine.
+- `[propagate]` Release Check tolerates a missing `package.json` on the PR base commit (initial-import PRs no longer fail the version comparison).
+- `[propagate]` Removed the template-only Scaffold & Verify workflow (`validate-template.yml`) — it fails by design on instances once `scripts/scaffold.mjs` is deleted during scaffolding.
