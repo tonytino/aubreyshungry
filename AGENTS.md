@@ -25,6 +25,7 @@ Source of truth for all agents in this repo. Read this file fully before making 
 | --------------------------------------------- | ----------------------------- |
 | Understanding what/why we're building         | `docs/product/overview.md`    |
 | **Any food content (dietary golden rules)**   | `docs/agents/dietary-safety.md` |
+| Anti-inflammatory guidance for meal planning  | `docs/agents/nutrition-guidelines.md` |
 | Domain: weeks, meals, recipes, shopping lists | `docs/agents/domain.md`       |
 | What needs the owner's sign-off               | `docs/agents/governance.md`   |
 | Orchestrating agents, reviewing agent output  | `docs/agents/orchestration.md` |

@@ -104,10 +104,11 @@ Minimize (use sparingly, never as the base of a plan):
 - Processed meats; keep red meat occasional
 - Alcohol
 
-> **Pending:** the owner is supplying a NYT article on anti-inflammatory
-> eating. Its guidance will be distilled into this section (principles and
-> food lists only — never republish copyrighted recipe text; see
-> `docs/agents/governance.md`).
+> The full, generator-facing version of this guidance — distilled from the
+> owner's sources (starting with a 2024 NYT article on anti-inflammatory
+> eating) — lives in `docs/agents/nutrition-guidelines.md`. Principles and
+> food lists only; never republish copyrighted recipe text
+> (`docs/agents/governance.md`).
 
 ---
 

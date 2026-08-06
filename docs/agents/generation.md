@@ -45,9 +45,9 @@ GitHub Actions cron (weekly, e.g. Thu — before weekend shopping)
 ## Content inputs to maintain
 
 - `docs/agents/dietary-safety.md` — the golden rules (owner-gated).
-- A **nutrition guidelines** doc distilled from the owner's sources (pending:
-  NYT anti-inflammatory article — principles only, no copyrighted recipe
-  text).
+- `docs/agents/nutrition-guidelines.md` — the anti-inflammatory guidance
+  distilled from the owner's sources (principles only, no copyrighted recipe
+  text), including the ~30-distinct-foods-per-week variety target.
 - A **preferences config** (household size/servings, meal-prep vs fresh ratio,
   disliked ingredients, staple pantry items assumed on hand) — structured so
   the generator and linter can both read it.
