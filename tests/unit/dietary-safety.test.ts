@@ -35,7 +35,10 @@ const { ALLOWLIST, FORBIDDEN_GLUTEN, FORBIDDEN_NUT, RULE_SETS } = termLists as {
   ALLOWLIST: RegExp[];
   FORBIDDEN_GLUTEN: { pattern: RegExp; label: string; substitute?: string }[];
   FORBIDDEN_NUT: { pattern: RegExp; label: string; substitute?: string }[];
-  RULE_SETS: { rule: string; terms: { pattern: RegExp }[] }[];
+  RULE_SETS: {
+    rule: string;
+    terms: { pattern: RegExp; label: string; substitute?: string }[];
+  }[];
 };
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -557,6 +560,162 @@ describe("reviewer's combined attack fixture", () => {
       expect(output).toContain(planted);
     }
     expect(output).not.toMatch(/no forbidden ingredients/);
+  });
+});
+
+describe("wheat staples (round-2 review regression)", () => {
+  it.each([
+    ["bare pasta", "8 oz pasta"],
+    ["all-purpose flour", "2 tbsp all-purpose flour"],
+    ["bare bread", "1 slice bread"],
+    ["bare flour", "dust with flour"],
+    ["bare noodles", "toss the noodles"],
+    ["bare tortillas", "warm the tortillas"],
+    ["breadcrumbs", "coat in breadcrumbs"],
+    ["bread crumbs (two words)", "coat in bread crumbs"],
+    ["flour tortilla", "one flour tortilla"],
+    ["croutons", "top with croutons"],
+    ["pretzels", "crushed pretzels"],
+    ["croissant", "a butter croissant"],
+    ["baguette", "sliced baguette"],
+    ["brioche", "brioche bun"],
+    ["challah", "challah slices"],
+    ["naan", "warm naan"],
+    ["pita", "pita wedges"],
+    ["bagel", "everything bagel"],
+    ["focaccia", "rosemary focaccia"],
+    ["ciabatta", "ciabatta roll"],
+    ["sourdough", "sourdough toast"],
+    ["bread flour", "500 g bread flour"],
+    ["cake flour", "sifted cake flour"],
+    ["pastry flour", "fine pastry flour"],
+    ["self-rising flour", "self-rising flour"],
+    ["plain flour", "plain flour"],
+    ["00 flour", "Italian 00 flour"],
+  ])("flags %s", (_name, phrase) => {
+    const hits = scanText(phrase);
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0]?.rule).toMatch(/gluten-free/);
+  });
+
+  it.each([
+    ["GF 1:1 flour blend", "use a GF 1:1 flour blend"],
+    ["gluten-free flour", "any gluten-free flour"],
+    ["almond flour", "almond flour crust"],
+    ["rice flour", "rice flour coating"],
+    ["chickpea flour", "chickpea flour batter"],
+    ["coconut flour", "coconut flour pancakes"],
+    ["buckwheat flour", "buckwheat flour crepes"],
+    ["brown-rice pasta", "brown-rice pasta"],
+    ["GF pasta", "your favorite GF pasta"],
+    ["chickpea pasta", "chickpea pasta"],
+    ["gluten-free bread", "toasted gluten-free bread"],
+    ["certified-GF breadcrumbs", "certified-GF breadcrumbs"],
+    ["GF pretzels", "GF pretzels"],
+    ["corn tortillas", "corn tortillas (certified GF)"],
+    ["rice noodles", "rice noodles"],
+    ["zucchini noodles", "zucchini noodles"],
+    ["certified-GF pita", "certified-GF pita"],
+  ])("does not flag the safe phrasing %s", (_name, phrase) => {
+    expect(scanText(phrase)).toEqual([]);
+  });
+
+  it("fails the reviewer's staples JSON via the CLI", () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(
+      path.join(root, "content", "staples.json"),
+      JSON.stringify({ ingredients: ["8 oz pasta", "2 tbsp all-purpose flour", "1 slice bread"] })
+    );
+    const { code, output } = runCli(root);
+    expect(code).toBe(1);
+    expect(output).toContain("pasta");
+    expect(output).toContain("all-purpose flour");
+    expect(output).toContain("bread");
+  });
+});
+
+describe("markdown formatting cannot defeat matching (round-2 review regression)", () => {
+  it.each([
+    ["bold soy", "Add **soy** sauce."],
+    ["code-span sauce", "soy `sauce`"],
+    ["bold peppercorns", "pink **peppercorns**"],
+    ["italic yeast", "brewers *yeast*"],
+    ["underscore trail mix", "_trail_ mix"],
+  ])("flags %s", (_name, phrase) => {
+    expect(scanText(phrase).length).toBeGreaterThan(0);
+  });
+
+  it("keeps emphasized safe phrasing clean: certified **gluten-free** oats", () => {
+    expect(scanText("certified **gluten-free** oats")).toEqual([]);
+  });
+
+  it("catches formatted terms in an actual .md file scan", () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(path.join(root, "content", "fancy.md"), "Add **soy** sauce.\n");
+    const findings = scanFile(root, "content/fancy.md");
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.label).toMatch(/soy sauce/);
+  });
+});
+
+describe("dotfiles under content/ (round-2 review regression)", () => {
+  it("scans content/.hidden.md and flags its contents", () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(path.join(root, "content", ".hidden.md"), "secret cashew snack\n");
+    const { files, findings } = lint(root);
+    expect(files).toEqual(["content/.hidden.md"]);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.label).toMatch(/cashew/);
+    expect(runCli(root).code).toBe(1);
+  });
+
+  it("exempts .gitkeep and .DS_Store from the unscanned hard error", () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(path.join(root, "content", ".gitkeep"), "");
+    fs.writeFileSync(path.join(root, "content", ".DS_Store"), "junk");
+    const { unscanned } = lint(root);
+    expect(unscanned).toEqual([]);
+    expect(runCli(root).code).toBe(0);
+  });
+});
+
+describe("uppercase .JSON gets structural scanning (round-2 review regression)", () => {
+  it("reports a $-path for Sneaky.JSON, not a prose line", () => {
+    const root = makeTempRoot();
+    fs.mkdirSync(path.join(root, "content"));
+    fs.writeFileSync(
+      path.join(root, "content", "Sneaky.JSON"),
+      JSON.stringify({ steps: ["soy", "sauce"] })
+    );
+    const findings = scanFile(root, "content/Sneaky.JSON");
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.location).toBe("$.steps[0..1] (adjacent strings)");
+  });
+});
+
+describe("substitute suggestions never re-trip the linter (round-2 review regression)", () => {
+  it("every substitute string in every rule set scans clean", () => {
+    for (const { terms } of RULE_SETS) {
+      for (const term of terms) {
+        if (!term.substitute) continue;
+        expect(scanText(term.substitute), `substitute for "${term.label}"`).toEqual([]);
+      }
+    }
+  });
+});
+
+describe("allowlist over-mask fix (round-2 review regression)", () => {
+  it('flags wheat in "dust the wheat free-range chicken"', () => {
+    const hits = scanText("dust the wheat free-range chicken");
+    expect(hits.map((h) => h.matched.toLowerCase())).toContain("wheat");
+  });
+
+  it('still keeps "this recipe is wheat-free" clean', () => {
+    expect(scanText("this recipe is wheat-free")).toEqual([]);
   });
 });
 
