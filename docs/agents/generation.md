@@ -54,10 +54,11 @@ GitHub Actions cron (weekly, e.g. Thu — before weekend shopping)
 
 ## Open decisions (settle by ADR, tracked as issues)
 
-- **Content storage:** files-in-repo (markdown/JSON per week) vs Neon DB.
-  Leaning files-in-repo for v1: the site is read-only, PR-gated publishing
-  and history fall out of git for free, and no DB cost/ops. The DB stays
-  available for later features (search, tagging).
+- **Content storage:** settled — see
+  `docs/decisions/006-content-storage-files-in-repo.md`. Files-in-repo for
+  v1: Zod-validated JSON at `content/weeks/<ISO-week>.json` plus a shared
+  recipe library `content/recipes/<slug>.json`; the DB stays available for
+  later features (search, tagging).
 - **Generator runtime:** direct Claude API call from a workflow script vs a
   Claude Code agent session. Start with the simplest thing that produces
   schema-valid output.

@@ -79,9 +79,10 @@ used inside a grocery store).
 
 ## Open questions (tracked as issues, not settled here)
 
-- **Storage**: content files in-repo (markdown/JSON per week — git is the
-  history) vs. Neon/Drizzle (already in the stack). Leaning content-in-repo
-  for v1 since the site is read-only and PR-gated publishing falls out for
-  free; decide via ADR before building.
+- **Storage**: settled — see
+  `docs/decisions/006-content-storage-files-in-repo.md`. Content files live
+  in-repo as Zod-validated JSON (`content/weeks/<ISO-week>.json` +
+  `content/recipes/<slug>.json`, weeks referencing recipes by slug);
+  Neon/Drizzle stays reserved for later features (search, tagging).
 - Week boundaries and generation day (generate Thu/Fri for weekend shopping?).
 - Household serving sizes and portion math.
