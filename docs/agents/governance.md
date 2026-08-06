@@ -37,27 +37,39 @@ only where the stakes demand it.
 
 ## Enforcement — current state and target
 
-**Now (foundation phase):**
+**Now:**
 
-- `.github/CODEOWNERS` assigns the gated **paths** to @tonytino. Once branch
-  protection with **Require review from Code Owners** is enabled (owner
-  checklist below), owned-path PRs cannot merge without his review —
-  regardless of labels.
-- Everything else is a **norm**: agents classify honestly, and reviewers probe
+- **Layer 1 (the teeth):** `.github/CODEOWNERS` assigns the gated **paths** to
+  @tonytino. Once branch protection with **Require review from Code Owners**
+  is enabled (owner checklist below), owned-path PRs cannot merge without his
+  review — regardless of labels.
+- **Layer 2 (the tripwire) — live:** the **`owner-review` CI job**
+  (`.github/workflows/pr-conventions.yml`, ported from
+  [aubreyslist](https://github.com/tonytino/aubreyslist)) scans changed files
+  against the gated paths **plus content signals** paths can't see —
+  destructive SQL in migrations, the medical/nutritional-advice disclaimer
+  copy, and a forbidden-ingredient tripwire in food-content files — and fails
+  CI when a gated change isn't labeled `safe:human`. **No bypass label.** The
+  policy lives in `.github/scripts/owner-review-paths.mjs`; a bidirectional
+  unit test (`tests/unit/check-owner-review.test.ts`) fails the build if it
+  ever drifts from `CODEOWNERS`. Verify locally with:
+  `BASE_SHA=origin/main OWNER_REVIEW_LABELS=safe:agent node .github/scripts/check-owner-review.mjs`.
+- **Honest limitations.** The CI job is a **forcing function + fast feedback,
+  not the enforcement** — labels and CI can be worked around by anyone with
+  merge rights; Layer 1 is what makes an owned-path PR unmergeable. And the
+  content checks are best-effort heuristics: a gated change in an *unowned*
+  file that evades the patterns has no Layer-1 backstop and can still merge
+  as `safe:agent`. Honest classification remains the norm, and reviewers probe
   the Dietary safety and Security dimensions in every adversarial review
   (`docs/agents/orchestration.md`).
 
 **Target (tracked as foundational issues):**
 
-- An **`owner-review` CI job** (pattern proven in
-  [aubreyslist](https://github.com/tonytino/aubreyslist):
-  `.github/scripts/check-owner-review.mjs`) that scans changed files against
-  the gated paths **plus content signals** (forbidden-ingredient terms in food
-  content, destructive SQL) and fails CI when a gated change isn't labeled
-  `safe:human`. **No bypass label.**
-- The **forbidden-ingredient linter** as a required check on all food content.
-  When it is mature, routine weekly-plan PRs may graduate from `safe:human`
-  to `safe:agent` — that graduation decision is itself owner-gated.
+- The **forbidden-ingredient linter** (issue #3) as a required check on all
+  food content — the content tripwire above is deliberately simple and is NOT
+  that linter. When the linter is mature, routine weekly-plan PRs may graduate
+  from `safe:human` to `safe:agent` — that graduation decision is itself
+  owner-gated.
 
 ## Owner-only setup checklist (@tonytino)
 

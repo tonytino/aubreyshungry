@@ -162,3 +162,5 @@ gh issue edit <NUMBER> --remove-label "status:in-progress" --add-label "status:b
 | `type:chore` | Maintenance / tooling |
 | `type:docs` | Documentation |
 | `skip-changelog` | PR intentionally ships without a changelog fragment |
+| `review:adversarial-passed` | Adversarial review loop completed (`docs/agents/orchestration.md`) — required to merge |
+| `skip-review` | Bypasses the adversarial-review gate (trivial/human-only change) |
