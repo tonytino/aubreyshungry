@@ -77,12 +77,18 @@ used inside a grocery store).
 
 ---
 
+## Storage (settled — ADR-006)
+
+Content lives in-repo as Zod-validated JSON: one file per published week at
+`content/weeks/<ISO-week>.json` plus a shared recipe library at
+`content/recipes/<slug>.json`, referenced by slug. Git is the history;
+Neon/Drizzle is reserved for later features (search, tagging). Full rationale,
+layout, immutability rules, and the DB migration path:
+`docs/decisions/006-content-storage-files-in-repo.md`.
+
+---
+
 ## Open questions (tracked as issues, not settled here)
 
-- **Storage**: settled — see
-  `docs/decisions/006-content-storage-files-in-repo.md`. Content files live
-  in-repo as Zod-validated JSON (`content/weeks/<ISO-week>.json` +
-  `content/recipes/<slug>.json`, weeks referencing recipes by slug);
-  Neon/Drizzle stays reserved for later features (search, tagging).
 - Week boundaries and generation day (generate Thu/Fri for weekend shopping?).
 - Household serving sizes and portion math.
