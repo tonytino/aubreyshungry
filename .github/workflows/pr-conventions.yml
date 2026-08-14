@@ -47,6 +47,28 @@ jobs:
             exit 1
           fi
 
+  pr-tldr:
+    name: Plain-language TL;DR
+    # Every PR must lead with a filled-in `## TL;DR` section — the 1–3 plain
+    # sentences a non-engineer can understand. This exists to make review fast:
+    # the owner reads the TL;DR before deciding how deep to go. Bot-authored
+    # PRs (e.g. dependabot, if ever enabled) are exempt — they cannot author
+    # our template sections. No skip label exists for this gate.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      # The validator is a zero-dep ESM script; node is already on
+      # ubuntu-latest, so we only need a checkout to read the script file.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      # Pass the body via env (not inline ${{ }}) to avoid shell injection via
+      # an attacker-controlled PR body — exactly like the other jobs here.
+      - name: Validate the TL;DR block in the PR body
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node .github/scripts/check-tldr-block.mjs
+
   adversarial-review:
     name: Adversarial review gate
     # Enforces the 2-round adversarial review loop in docs/agents/orchestration.md.

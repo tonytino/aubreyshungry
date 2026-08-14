@@ -1,3 +1,9 @@
+## TL;DR
+<!-- 1–3 plain sentences anyone can understand: what changed and why it matters.
+The pr-tldr CI job requires this section to be filled in. -->
+
+-
+
 ## Summary
 <!-- What does this PR do? Bullet points preferred. -->
 
