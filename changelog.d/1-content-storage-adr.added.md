@@ -1,0 +1,1 @@
+- `[manual]` ADR-006: weekly-plan content is stored as files in the repo for v1 — Zod-validated JSON at `content/weeks/<ISO-week>.json` plus a shared recipe library `content/recipes/<slug>.json` — with Neon/Drizzle reserved for later features (search, tagging). Domain and generation docs updated to mark the storage question settled.

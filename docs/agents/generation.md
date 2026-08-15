@@ -24,14 +24,22 @@ built.
 GitHub Actions cron (weekly, e.g. Thu — before weekend shopping)
   └─> generate job: LLM (ANTHROPIC_API_KEY secret) + generation prompt
         • inputs: golden rules doc, nutrition guidelines, recent weeks
-          (variety — don't repeat last week), household preferences config
-        • output: structured week content (schema-validated with Zod)
+          (variety — compare recipe slugs, don't repeat last week's),
+          household preferences config
+        • output: content/weeks/<ISO-week>.json plus any new
+          content/recipes/<slug>.json files (reuse existing slugs where the
+          dish repeats) — all schema-validated with Zod
   └─> open PR "plan: 2026-W32"
         • CI: forbidden-ingredient linter, schema validation, build, tests
         • label per governance: safe:human while the linter is unproven;
           may graduate to safe:agent later (owner decision)
   └─> merge → Vercel deploys → the week is live
 ```
+
+Content storage is settled by ADR-006
+(`docs/decisions/006-content-storage-files-in-repo.md`): the generate job
+writes files, the PR diff is the publish, and editing a shared recipe counts
+as regenerating every published week that references it.
 
 ## Regeneration / editing
 
@@ -54,10 +62,6 @@ GitHub Actions cron (weekly, e.g. Thu — before weekend shopping)
 
 ## Open decisions (settle by ADR, tracked as issues)
 
-- **Content storage:** files-in-repo (markdown/JSON per week) vs Neon DB.
-  Leaning files-in-repo for v1: the site is read-only, PR-gated publishing
-  and history fall out of git for free, and no DB cost/ops. The DB stays
-  available for later features (search, tagging).
 - **Generator runtime:** direct Claude API call from a workflow script vs a
   Claude Code agent session. Start with the simplest thing that produces
   schema-valid output.

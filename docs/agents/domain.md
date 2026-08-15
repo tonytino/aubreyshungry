@@ -77,11 +77,18 @@ used inside a grocery store).
 
 ---
 
+## Storage (settled — ADR-006)
+
+Content lives in-repo as Zod-validated JSON: one file per published week at
+`content/weeks/<ISO-week>.json` plus a shared recipe library at
+`content/recipes/<slug>.json`, referenced by slug. Git is the history;
+Neon/Drizzle is reserved for later features (search, tagging). Full rationale,
+layout, immutability rules, and the DB migration path:
+`docs/decisions/006-content-storage-files-in-repo.md`.
+
+---
+
 ## Open questions (tracked as issues, not settled here)
 
-- **Storage**: content files in-repo (markdown/JSON per week — git is the
-  history) vs. Neon/Drizzle (already in the stack). Leaning content-in-repo
-  for v1 since the site is read-only and PR-gated publishing falls out for
-  free; decide via ADR before building.
 - Week boundaries and generation day (generate Thu/Fri for weekend shopping?).
 - Household serving sizes and portion math.
