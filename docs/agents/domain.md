@@ -8,23 +8,35 @@ below is constrained by the golden rules.
 
 ## Entities
 
+**The Zod schemas in `app/content/schema.ts` are the source of truth for
+these shapes** (with `app/content/validate.ts` as the storage-adapter seam
+from ADR-006). The descriptions below are the plain-language map; if they
+ever disagree with the schemas, the schemas win — fix this doc.
+
 ### Week (the unit of publication)
 
 A `Week` is one published weekly plan — the atom of the site. Identified by
 ISO week (e.g. `2026-W32`). A week has:
 
-- **status** — `draft` (open PR) → `published` (merged) → optionally
-  `regenerated` (superseded by a re-run; history preserved via git)
-- **menu** — the list of `Meal`s planned for the week
-- **snacks** — a list of `Snack`s for the week
-- **shoppingList** — derived by aggregating ingredients across the menu +
-  snacks (never hand-maintained independently of the recipes)
+- **isoWeek** — the identifier, `YYYY-Www` (week 01–53); also the filename
+- **menu** — the list of `Meal`s planned for the week (non-empty)
+- **snacks** — recipe slugs of snack recipes for the week (may be empty)
 - **notes** — optional context ("salmon was great, repeat"; "prep Sunday")
+
+There is deliberately **no `status` field** and **no stored shopping list**:
+
+- Published = merged to `main` (ADR-006). A draft is an open PR;
+  supersession is git history. A stored status could only drift from that
+  reality, so the schema omits it.
+- The shopping list is always derived from the referenced recipes at build
+  time (see below), never stored.
 
 ### Meal
 
-A planned eating occasion. Fields: recipe reference, day(s) it covers, and a
-**style**:
+A planned eating occasion within a week's menu. Fields: **recipeSlug**
+(reference to the recipe library), **days** it covers (non-empty, no
+duplicates), and an optional **note**. Its style — meal-prep vs fresh —
+comes from the referenced recipe, not the meal:
 
 - `meal-prep` — batch-cooked ahead, portioned for multiple days. The default;
   the plan optimizes for this.
@@ -34,10 +46,12 @@ A planned eating occasion. Fields: recipe reference, day(s) it covers, and a
 
 ### Recipe
 
-Original instructions for one dish. Fields: title, servings, prep/cook time,
-style (`meal-prep` | `fresh` | `snack`), ingredient list (structured — see
-`Ingredient`), steps, storage/reheating notes for meal-prep recipes, and
-golden-rule callouts (e.g. "use certified-GF tamari").
+Original instructions for one dish. Fields: slug (kebab-case, stable
+identifier and filename), title, servings, prep/cook time, style
+(`meal-prep` | `fresh` | `snack`), ingredient list (structured — see
+`Ingredient`), steps, storage/reheating notes (**required** for meal-prep
+recipes, optional otherwise), and golden-rule callouts (e.g. "use
+certified-GF tamari").
 
 Recipes are **original content**. Adapting general techniques is fine;
 republishing a copyrighted recipe's text (NYT Cooking or anywhere else) is
@@ -45,16 +59,22 @@ not. See `docs/agents/governance.md`.
 
 ### Ingredient
 
-A structured line item: name, quantity, unit, store section (produce, protein,
-pantry, frozen, dairy…), and optional safety note ("check label: no
-cashew/pistachio cross-contact"). Structured ingredients are what make the
-shopping-list aggregation and the forbidden-ingredient linter possible —
-**never bury ingredients in prose**.
+A structured line item: name, quantity (positive number), unit (a closed
+enum of canonical units, with `""` meaning a bare count — free-text units
+would silently split shopping-list merge groups, so new units are added to
+the enum via PR), store section (produce, protein, dairy, pantry, spices,
+frozen, other), and optional safety note ("check label: no cashew/pistachio
+cross-contact"). Structured ingredients are what make the shopping-list
+aggregation and the forbidden-ingredient linter possible — **never bury
+ingredients in prose**.
 
 ### Snack
 
 A lightweight recipe (or a buy-this product with a safety note) intended for
-between-meal eating. Same golden rules, same structured ingredients.
+between-meal eating. Same golden rules, same structured ingredients. In the
+schema, a week's `snacks` are slugs referencing recipes with
+`style: "snack"`; whether buy-this products get recipe-library entries or a
+dedicated shape is still open (ADR-006 → "deliberately left open").
 
 ### Shopping list
 
@@ -92,3 +112,13 @@ layout, immutability rules, and the DB migration path:
 
 - Week boundaries and generation day (generate Thu/Fri for weekend shopping?).
 - Household serving sizes and portion math.
+- **Batch multiplier (for the #6 aggregation spec):** `Meal` has no
+  multiplier — a recipe's quantities are always taken at 1x. If "make a
+  double batch" becomes a real need, add an optional `multiplier` field to
+  `MealSchema` (positive, default 1); it is an additive, non-breaking
+  schema change.
+- **Count-unit sizes (for the #6 aggregation spec):** count-ish units
+  (`can`, `jar`, `package`) carry the size in the ingredient *name* by
+  convention (e.g. "diced tomatoes (14.5 oz can)"). Aggregation merges on
+  exact (name, unit), so consistent naming is what keeps two 14.5 oz cans
+  merging correctly; a structured size field is a possible later addition.
