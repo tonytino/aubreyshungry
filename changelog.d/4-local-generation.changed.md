@@ -1,0 +1,1 @@
+- `[manual]` Weekly plan generation is now owner-run by design: a local Claude Code session (existing subscription) drafts the week and opens the PR — no Actions cron, no `ANTHROPIC_API_KEY` secret, no metered API spend. CI gates are unchanged and stay in GitHub's free public-repo tier; an optional zero-LLM reminder workflow may nag when a week is missing.
