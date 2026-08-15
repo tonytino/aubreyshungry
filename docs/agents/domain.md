@@ -112,3 +112,13 @@ layout, immutability rules, and the DB migration path:
 
 - Week boundaries and generation day (generate Thu/Fri for weekend shopping?).
 - Household serving sizes and portion math.
+- **Batch multiplier (for the #6 aggregation spec):** `Meal` has no
+  multiplier — a recipe's quantities are always taken at 1x. If "make a
+  double batch" becomes a real need, add an optional `multiplier` field to
+  `MealSchema` (positive, default 1); it is an additive, non-breaking
+  schema change.
+- **Count-unit sizes (for the #6 aggregation spec):** count-ish units
+  (`can`, `jar`, `package`) carry the size in the ingredient *name* by
+  convention (e.g. "diced tomatoes (14.5 oz can)"). Aggregation merges on
+  exact (name, unit), so consistent naming is what keeps two 14.5 oz cans
+  merging correctly; a structured size field is a possible later addition.

@@ -181,13 +181,22 @@ describe("MealSchema", () => {
 });
 
 describe("IsoWeekSchema", () => {
-  it.each(["2026-W01", "2026-W09", "2026-W33", "2020-W53"])("accepts %s", (value) => {
+  it.each([
+    "2026-W01",
+    "2026-W09",
+    "2026-W33",
+    // Long ISO years (53 weeks): 2026 (Jan 1 is a Thursday) and 2020
+    // (leap year, Jan 1 is a Wednesday).
+    "2026-W53",
+    "2020-W53",
+  ])("accepts %s", (value) => {
     expect(IsoWeekSchema.safeParse(value).success).toBe(true);
   });
 
   it.each([
     ["week 00", "2026-W00"],
     ["week 54", "2026-W54"],
+    ["W53 in a 52-week year", "2025-W53"],
     ["week 99", "2026-W99"],
     ["missing W", "2026-33"],
     ["lowercase w", "2026-w33"],
@@ -219,9 +228,21 @@ describe("WeekSchema", () => {
     expect(parsed).not.toHaveProperty("status");
   });
 
+  it("allows duplicate menu recipeSlugs and same-day meal overlap (cook it twice)", () => {
+    const result = WeekSchema.safeParse({
+      ...validWeek,
+      menu: [
+        { recipeSlug: "baked-salmon-quinoa-bowls", days: ["monday"] },
+        { recipeSlug: "baked-salmon-quinoa-bowls", days: ["monday", "thursday"] },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
   it.each([
     ["empty menu", { ...validWeek, menu: [] }],
     ["bad snack slug", { ...validWeek, snacks: ["Rosemary Almonds"] }],
+    ["duplicate snack slugs", { ...validWeek, snacks: ["rosemary-almonds", "rosemary-almonds"] }],
     ["bad isoWeek", { ...validWeek, isoWeek: "2026-W54" }],
     ["missing snacks", { isoWeek: "2026-W33", menu: [validMeal] }],
     ["empty notes", { ...validWeek, notes: "" }],

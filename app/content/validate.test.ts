@@ -193,6 +193,53 @@ describe("validateContentDir", () => {
     expect(result.errors[0]?.path).toBe("snacks.0");
   });
 
+  it("skips a DIRECTORY named *.json instead of throwing EISDIR", () => {
+    const dir = makeContentDir({
+      "recipes/turmeric-ginger-trout.json": recipeJson(),
+      "weeks/2026-W33.json": weekJson(),
+    });
+    fs.mkdirSync(path.join(dir, "recipes", "evil.json"));
+    const result = validateContentDir(dir);
+    expect(result.ok).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.recipes).toHaveLength(1);
+  });
+
+  it("rejects a snack referencing a non-snack recipe", () => {
+    const dir = makeContentDir({
+      // meal-prep style recipe referenced from snacks.
+      "recipes/turmeric-ginger-trout.json": recipeJson(),
+      "weeks/2026-W33.json": weekJson({
+        menu: [{ recipeSlug: "turmeric-ginger-trout", days: ["monday"] }],
+        snacks: ["turmeric-ginger-trout"],
+      }),
+    });
+    const result = validateContentDir(dir);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.path).toBe("snacks.0");
+    expect(result.errors[0]?.message).toContain('"meal-prep" recipe');
+  });
+
+  it("rejects a menu entry referencing a snack-style recipe", () => {
+    const dir = makeContentDir({
+      "recipes/rosemary-almonds.json": recipeJson({
+        slug: "rosemary-almonds",
+        title: "Rosemary Almonds",
+        style: "snack",
+        storageNotes: undefined,
+      }),
+      "weeks/2026-W33.json": weekJson({
+        menu: [{ recipeSlug: "rosemary-almonds", days: ["monday"] }],
+      }),
+    });
+    const result = validateContentDir(dir);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.path).toBe("menu.0.recipeSlug");
+    expect(result.errors[0]?.message).toContain("snack recipe");
+  });
+
   it("reports duplicate recipe slugs across files", () => {
     const dir = makeContentDir({
       "recipes/turmeric-ginger-trout.json": recipeJson(),

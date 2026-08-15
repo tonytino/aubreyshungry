@@ -113,7 +113,22 @@ export const IngredientSchema = z.object({
   quantity: z.number().positive("quantity must be a positive number"),
   unit: UnitSchema,
   section: StoreSectionSchema,
-  /** e.g. "check label: processed in a facility free of cashew/pistachio cross-contact". */
+  /**
+   * Optional safety note, e.g. the tree-nut note mandated by
+   * `docs/agents/dietary-safety.md`: "check label: processed in a facility
+   * free of cashew/pistachio cross-contact".
+   *
+   * ⚠️ KNOWN CONFLICT (issue #16): that doc-mandated phrasing itself
+   * contains the words "cashew"/"pistachio", so the live forbidden-term
+   * linter (`pnpm lint:dietary`) currently FLAGS it when it appears in
+   * `content/**` JSON — the mandated note cannot yet ship in real content
+   * files. The reconciliation (allowlisting the exact safety-note phrase in
+   * `scripts/dietary-safety/terms.mjs`) is OWNER-GATED and tracked as
+   * issue #16. Until it lands, expect `lint:dietary` to fail on content
+   * carrying this note. NEVER "fix" that failure by deleting, truncating,
+   * or weakening the safety note — the note is the safety mechanism; the
+   * linter allowlist is what must change, and only via #16's owner review.
+   */
   safetyNote: z.string().trim().min(1).optional(),
 });
 
@@ -167,28 +182,65 @@ export type Meal = z.infer<typeof MealSchema>;
 /** `2026-W03` — ISO 8601 week identifier. Week number range checked by refinement. */
 const ISO_WEEK = /^\d{4}-W\d{2}$/;
 
+/**
+ * ISO 8601 long-year rule: a year has 53 weeks only when Jan 1 falls on a
+ * Thursday, or on a Wednesday in a leap year; every other year has 52.
+ * Enforced because the isoWeek is the file identity — an impossible week
+ * (e.g. 2025-W53) would otherwise live in the archive forever.
+ */
+function isLongIsoYear(year: number): boolean {
+  const jan1Weekday = new Date(Date.UTC(year, 0, 1)).getUTCDay(); // 3 = Wed, 4 = Thu
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  return jan1Weekday === 4 || (isLeap && jan1Weekday === 3);
+}
+
 export const IsoWeekSchema = z
   .string()
   .regex(ISO_WEEK, "must match YYYY-Www (e.g. 2026-W03)")
-  .refine(
-    (value) => {
-      const week = Number(value.slice(-2));
-      return week >= 1 && week <= 53;
-    },
-    { message: "ISO week number must be between 01 and 53" }
-  );
+  .superRefine((value, ctx) => {
+    const year = Number(value.slice(0, 4));
+    const week = Number(value.slice(-2));
+    if (week < 1 || week > 53) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "ISO week number must be between 01 and 53",
+      });
+      return;
+    }
+    if (week === 53 && !isLongIsoYear(year)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${year} is not an ISO long year — it has 52 weeks, so W53 does not exist`,
+      });
+    }
+  });
 
 /**
  * One published weekly plan — the unit of publication, stored at
  * `content/weeks/<isoWeek>.json`. Note there is no `status` and no stored
  * shopping list: published = merged to main (ADR-006), and the shopping
  * list is always derived from the referenced recipes at build time.
+ *
+ * Deliberate allowances (decided, not oversights):
+ *
+ * - **Duplicate menu recipeSlugs are allowed.** Planning the same dish
+ *   twice in one week ("cook it twice", e.g. a fresh salad made Monday and
+ *   again Thursday) is legitimate; the shopping-list aggregation (#6) must
+ *   count each meal entry.
+ * - **Two meals may overlap on the same day.** Lunch and dinner are
+ *   different meals on one day, so cross-meal day overlap is not an error.
+ * - **Duplicate snack slugs are NOT allowed** (refinement below): snacks
+ *   are a set of "have these on hand this week" references, so a repeat
+ *   carries no meaning and would silently double the snack's ingredients
+ *   in the aggregation.
  */
 export const WeekSchema = z.object({
   isoWeek: IsoWeekSchema,
   menu: z.array(MealSchema).nonempty("a week needs at least one meal"),
   /** Snack recipe references (`content/recipes/<slug>.json`). May be empty. */
-  snacks: z.array(RecipeSlugSchema),
+  snacks: z.array(RecipeSlugSchema).refine((snacks) => new Set(snacks).size === snacks.length, {
+    message: "snacks must not contain duplicate slugs",
+  }),
   notes: z.string().trim().min(1).optional(),
 });
 

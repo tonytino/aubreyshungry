@@ -61,26 +61,38 @@ export type ContentDirResult = {
   recipes: Recipe[];
 };
 
-/** Read and JSON-parse one file, reporting malformed JSON as a ContentError. */
+/**
+ * Read and JSON-parse one file. Both the read and the parse sit inside the
+ * guard so filesystem-level failures (EACCES, a file replaced by something
+ * unreadable, …) surface as ContentErrors — this function upholds the
+ * never-throw-on-content-problems contract of `validateContentDir`.
+ */
 function readJsonFile(
   absolute: string,
   relative: string
 ): { data: unknown } | { error: ContentError } {
-  const text = fs.readFileSync(absolute, "utf-8");
   try {
+    const text = fs.readFileSync(absolute, "utf-8");
     return { data: JSON.parse(text) as unknown };
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
-    return { error: { file: relative, path: "", message: `malformed JSON: ${message}` } };
+    const label = cause instanceof SyntaxError ? "malformed JSON" : "unreadable file";
+    return { error: { file: relative, path: "", message: `${label}: ${message}` } };
   }
 }
 
-/** List the .json files in `dir` (absent dir = empty), sorted for stable output. */
+/**
+ * List the .json REGULAR FILES in `dir` (absent dir = empty), sorted for
+ * stable output. `withFileTypes` + `isFile()` skips directories and other
+ * non-file entries — a directory named `something.json` must not reach
+ * `readFileSync` (it would throw EISDIR and break the never-throws contract).
+ */
 function listJsonFiles(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
   return fs
-    .readdirSync(dir)
-    .filter((name) => name.endsWith(".json"))
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) => entry.name)
     .sort();
 }
 
@@ -109,7 +121,7 @@ export function validateContentDir(dir: string): ContentDirResult {
   const weeksDir = path.join(dir, "weeks");
 
   // -- Recipes ------------------------------------------------------------
-  const recipeSlugs = new Set<string>();
+  const recipesBySlug = new Map<string, Recipe>();
   for (const name of listJsonFiles(recipesDir)) {
     const relative = path.join("recipes", name);
     const parsed = readJsonFile(path.join(recipesDir, name), relative);
@@ -123,7 +135,7 @@ export function validateContentDir(dir: string): ContentDirResult {
       continue;
     }
     const recipe = result.data;
-    if (recipeSlugs.has(recipe.slug)) {
+    if (recipesBySlug.has(recipe.slug)) {
       errors.push({
         file: relative,
         path: "slug",
@@ -131,7 +143,7 @@ export function validateContentDir(dir: string): ContentDirResult {
       });
       continue;
     }
-    recipeSlugs.add(recipe.slug);
+    recipesBySlug.set(recipe.slug, recipe);
     if (recipe.slug !== path.basename(name, ".json")) {
       errors.push({
         file: relative,
@@ -175,22 +187,40 @@ export function validateContentDir(dir: string): ContentDirResult {
     }
     weeks.push(week);
 
-    // Referential integrity: menu + snacks must resolve to recipe files.
+    // Referential integrity: menu + snacks must resolve to recipe files,
+    // and to the right KIND of recipe — menu entries are meals
+    // ("meal-prep" or "fresh"), snack entries are "snack" recipes
+    // (docs/agents/domain.md). A style mismatch is a content bug: it would
+    // put a snack on the dinner plan or bury a meal in the snack list.
     for (const [index, meal] of week.menu.entries()) {
-      if (!recipeSlugs.has(meal.recipeSlug)) {
+      const recipe = recipesBySlug.get(meal.recipeSlug);
+      if (recipe === undefined) {
         errors.push({
           file: relative,
           path: `menu.${index}.recipeSlug`,
           message: `week "${week.isoWeek}" references missing recipe "${meal.recipeSlug}"`,
         });
+      } else if (recipe.style === "snack") {
+        errors.push({
+          file: relative,
+          path: `menu.${index}.recipeSlug`,
+          message: `week "${week.isoWeek}" menu references "${meal.recipeSlug}", which is a snack recipe — menu entries must be "meal-prep" or "fresh"`,
+        });
       }
     }
     for (const [index, slug] of week.snacks.entries()) {
-      if (!recipeSlugs.has(slug)) {
+      const recipe = recipesBySlug.get(slug);
+      if (recipe === undefined) {
         errors.push({
           file: relative,
           path: `snacks.${index}`,
           message: `week "${week.isoWeek}" references missing recipe "${slug}"`,
+        });
+      } else if (recipe.style !== "snack") {
+        errors.push({
+          file: relative,
+          path: `snacks.${index}`,
+          message: `week "${week.isoWeek}" snacks references "${slug}", which is a "${recipe.style}" recipe — snacks must reference "snack" recipes`,
         });
       }
     }
