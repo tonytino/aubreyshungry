@@ -1,0 +1,1 @@
+- `[manual]` Content domain model as Zod schemas + inferred types (`app/content/schema.ts`) for weeks, meals, recipes, and ingredients, plus a validation seam (`app/content/validate.ts`) with `validateContentDir` enforcing schema conformance and referential integrity over `content/` — wired into CI via `tests/unit/content-validation.test.ts`.
