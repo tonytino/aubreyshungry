@@ -96,7 +96,7 @@ These apply everywhere, always, with no exceptions.
   safety, cost, legal/copyright, security, destructive data, and the
   process/config surfaces. See `docs/agents/governance.md`. Agents never merge
   (or enable auto-merge on) a `safe:human` PR.
-- **No `process.env` access outside `app/env.ts`.** All env vars go through the Zod-validated `getEnv()` accessor.
+- **No `process.env` access outside `app/env.ts`.** All env vars go through the Zod-validated `getEnv()` accessor. (One narrow exception: build-time tooling like `app.config.ts` may read **non-secret** platform build flags such as `VERCEL` directly — never secrets. Mirrors the aubreyslist rule.)
 - **No `any`.** Use `unknown` and narrow it, or fix the type properly.
 - **No `@ts-ignore` or `@ts-expect-error`** without a comment explaining why.
 - **No `useEffect` + `useState` for data fetching.** Use TanStack Query.

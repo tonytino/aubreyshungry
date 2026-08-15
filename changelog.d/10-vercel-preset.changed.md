@@ -1,0 +1,1 @@
+- `[propagate]` `app.config.ts` now selects the vinxi server preset by platform: `vercel` when Vercel's `VERCEL` build flag is set (emits `.vercel/output`, fixing "no build output" deploy failures), `node-server` everywhere else (local dev and the CI production-smoke job keep `.output/`). AGENTS.md records the narrow non-secret build-flag exception to the `process.env` Hard Rule.
