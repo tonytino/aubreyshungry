@@ -69,6 +69,30 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: node .github/scripts/check-tldr-block.mjs
 
+  plain-language:
+    name: Plain language (STE-inspired)
+    # STRICT on the PR body's `## TL;DR` section (1–3 sentences — always cheap
+    # to fix); ADVISORY warnings on the rest of the body, changed markdown, and
+    # comments in changed source files. This is an STE-INSPIRED heuristic, not
+    # ASD-STE100 conformance (the STE dictionary is licensed) — see the header
+    # of check-plain-language.mjs. Bot PRs exempt, same as pr-tldr.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      # fetch-depth 0 so the script can diff against the base SHA to find the
+      # changed files it scans in advisory mode.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      # Body and base SHA via env (not inline ${{ }}) — no shell injection.
+      - name: Check plain language (strict TL;DR, advisory elsewhere)
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node .github/scripts/check-plain-language.mjs
+
   adversarial-review:
     name: Adversarial review gate
     # Enforces the 2-round adversarial review loop in docs/agents/orchestration.md.
