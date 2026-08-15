@@ -35,6 +35,18 @@ Forbidden grains and derivatives — never include, in any form:
 - Wheat (including whole wheat, wheat berries, wheat germ, wheat bran)
 - Barley, rye, triticale
 - Spelt, farro, einkorn, emmer, kamut, durum, semolina, couscous, bulgur, freekeh
+- Wheat-based products in any form: panko, orzo, udon, ramen, graham
+  (flour/crackers), farina, phyllo (filo), matzo; soba noodles unless
+  100% buckwheat (certified GF)
+- Wheat flours and breads: all-purpose/bread/cake/pastry/self-rising/plain/00
+  flour, flour tortillas, breadcrumbs, croutons, pretzels, croissants,
+  baguette, brioche, challah, naan, pita, bagel, focaccia, ciabatta, sourdough
+  (all wheat unless a certified-GF version is named)
+- Bare "flour," "pasta," "bread," "noodles," and "tortillas" are treated as
+  wheat: always write the GF qualifier (e.g. "GF 1:1 flour blend,"
+  "brown-rice pasta," "certified gluten-free bread," "rice noodles," "corn
+  tortillas (certified GF)") — the linter flags the unqualified words
+- Vital wheat gluten; seitan (pure wheat gluten)
 - Malt in all forms (malt extract, malt vinegar, malted barley, malt syrup)
 - Brewer's yeast; beer (unless certified GF, prefer avoiding entirely)
 
@@ -116,9 +128,19 @@ Minimize (use sparingly, never as the base of a plan):
 
 - **Every PR containing food content** must state in its body how the three
   golden rules were checked.
-- A deterministic **forbidden-ingredient linter** (CI gate scanning all plan
-  and recipe content for gluten and cashew/pistachio terms and their aliases)
-  is a planned foundational feature — until it exists, human review of food
-  content is mandatory: label food-content PRs `safe:human`.
+- A deterministic **forbidden-ingredient linter** is live. It lives in
+  `scripts/dietary-safety/` (`terms.mjs` holds the term lists, `lint.mjs` the
+  scanner) and runs as the "Dietary safety linter" CI job on every push and
+  PR. Run it locally with `pnpm lint:dietary`. It scans all food content
+  (`content/**/*.{json,md}` plus `**/fixtures/**` food-content fixtures —
+  both structured JSON values/keys and prose) for gluten and
+  cashew/pistachio terms and their aliases, and fails on any hit with the
+  matched term, the rule violated, and a suggested safe substitute.
+- **The term lists in `scripts/dietary-safety/terms.mjs` must be kept in sync
+  with this doc** — it is the machine-readable mirror of these rules. Any
+  change to either (including the allowlist of known false positives) is
+  owner-gated: `safe:human`, @tonytino review, no exceptions.
+- The linter is a floor, not a substitute for judgment: human review of food
+  content remains mandatory — label food-content PRs `safe:human`.
 - The adversarial review loop (`docs/agents/orchestration.md`) includes
   **Dietary safety** as a mandatory review dimension.
