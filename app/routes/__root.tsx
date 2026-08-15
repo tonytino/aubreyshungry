@@ -7,6 +7,8 @@ import {
   createRootRouteWithContext,
 } from "@tanstack/react-router";
 import type { ErrorComponentProps } from "@tanstack/react-router";
+import { SiteFooter } from "~/components/SiteFooter";
+import { SiteHeader } from "~/components/SiteHeader";
 // Import the stylesheet as a bundled URL so the bundler emits a hashed asset
 // and rewrites the href. Referencing the source path ("/app/styles/app.css")
 // works in dev but 404s after `vinxi build`.
@@ -23,7 +25,12 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "App" },
+      { title: "Aubrey's Hungry" },
+      {
+        name: "description",
+        content:
+          "A weekly gluten-free, anti-inflammatory meal plan — menu, snacks, shopping list, and recipes, published every week.",
+      },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
@@ -39,7 +46,13 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body>
-        <Outlet />
+        <div className="flex min-h-screen flex-col">
+          <SiteHeader />
+          <div className="flex-1">
+            <Outlet />
+          </div>
+          <SiteFooter />
+        </div>
         <Scripts />
       </body>
     </html>
@@ -48,7 +61,7 @@ function RootComponent() {
 
 function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4">
+    <main className="flex flex-col items-center justify-center gap-4 py-24">
       <h1 className="text-4xl font-bold tracking-tight">404</h1>
       <p className="text-muted-foreground text-lg">Page not found.</p>
       <Link to="/" className="text-sm underline underline-offset-4">
@@ -60,7 +73,7 @@ function NotFound() {
 
 function RootErrorBoundary({ error, reset }: ErrorComponentProps) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4">
+    <main className="flex flex-col items-center justify-center gap-4 py-24">
       <h1 className="text-4xl font-bold tracking-tight">Something went wrong</h1>
       <p className="text-muted-foreground text-lg">
         {error instanceof Error ? error.message : "An unexpected error occurred."}
