@@ -32,7 +32,10 @@ test("archive page renders its empty state", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("unknown week renders the not-found page", async ({ page }) => {
-  await page.goto("/week/2026-W20");
+test("unknown week renders the not-found page with a real 404 status", async ({ page }) => {
+  const response = await page.goto("/week/2026-W20");
+  // Assert the HTTP status too — a regression to 200-with-not-found-UI must
+  // not pass e2e (search engines and caches care about the status line).
+  expect(response?.status()).toBe(404);
   await expect(page.getByRole("heading", { level: 1, name: "Week not found" })).toBeVisible();
 });
