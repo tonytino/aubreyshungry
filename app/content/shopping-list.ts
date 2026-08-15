@@ -16,8 +16,19 @@
  *   unique by schema, so each snack recipe counts once.
  *
  * - **Merging:** occurrences merge by (normalized name, unit). Name
- *   normalization is trim + lowercase + collapse inner whitespace; the
- *   displayed name is the first-seen original casing. Quantities sum.
+ *   normalization is Unicode NFC + trim + lowercase + collapse inner
+ *   whitespace. The displayed name is chosen deterministically and
+ *   order-independently: the lexicographically-first (code-point order)
+ *   NFC + whitespace-collapsed original spelling among the merged
+ *   occurrences. Quantities sum, rounded to 6 decimal places at the
+ *   emission boundary so float noise (0.1 + 0.2) never reaches the
+ *   printed list.
+ *
+ * - **Unicode: NFC yes, diacritic folding no.** NFC normalization merges
+ *   byte-different encodings of the SAME glyphs (composed vs decomposed
+ *   "jalapeño"). Diacritic folding is deliberately out: "jalapeño" and
+ *   "jalapeno" stay two lines. The authoring convention is to spell an
+ *   ingredient consistently — with its diacritics — across recipes.
  *
  * - **No unit conversion — deliberately.** The same normalized name with
  *   different units yields separate items, never a converted merge. Silent
@@ -29,21 +40,23 @@
  *   correctly (`docs/agents/domain.md`).
  *
  * - **Safety notes:** a merged item's `safetyNotes` is the union of the
- *   distinct `safetyNote`s across its occurrences, in first-seen order.
- *   Safety notes are load-bearing (dietary-safety golden rules) — they are
- *   never dropped in a merge.
+ *   `safetyNote`s across its occurrences, deduplicated case-insensitively
+ *   (first-seen original text kept), in first-seen order. Safety notes are
+ *   load-bearing (dietary-safety golden rules) — they are never dropped in
+ *   a merge; a duplicated note is acceptable, a missing one is not.
  *
- * - **Sections:** an item lands in its ingredient's `section`. If merged
- *   occurrences disagree on section, the first-seen section wins — the
- *   schema's closed section enum plus consistent recipe authoring makes
- *   this unlikely, and a wrong aisle is a nuisance, not an error worth
- *   failing the build over.
+ * - **Sections:** an item lands in the EARLIEST section (in
+ *   `STORE_SECTIONS` enum order) among its merged occurrences, so the
+ *   choice does not depend on menu order. The schema's closed section enum
+ *   plus consistent recipe authoring makes disagreement unlikely, and a
+ *   wrong aisle is a nuisance, not an error worth failing the build over.
  *
- * - **Ordering is deterministic:** sections appear in `STORE_SECTIONS` enum
- *   order (empty sections omitted); items within a section sort
- *   alphabetically by normalized name (code-point order, locale
- *   independent), tie-broken by unit. Same input always yields deep-equal
- *   output.
+ * - **Ordering is deterministic AND order-independent:** sections appear in
+ *   `STORE_SECTIONS` enum order (empty sections omitted); items within a
+ *   section sort alphabetically by normalized name (code-point order,
+ *   locale independent), tie-broken by unit. Reordering a week's menu or
+ *   snacks never changes the resulting list: same ingredient multiset in,
+ *   deep-equal shopping list out.
  *
  * ## ⚠️ Referential integrity is validateContentDir's job, not ours
  *
@@ -81,9 +94,35 @@ export type ShoppingListSection = {
 /** The full list: non-empty sections in `STORE_SECTIONS` enum order. */
 export type ShoppingList = ShoppingListSection[];
 
-/** trim + lowercase + collapse inner whitespace. */
+/**
+ * Display form: Unicode NFC + trim + collapse inner whitespace, original
+ * casing kept. Raw inner whitespace must never leak onto the printed list.
+ */
+function collapseName(name: string): string {
+  return name.normalize("NFC").trim().replace(/\s+/g, " ");
+}
+
+/** Merge key form: the display form, lowercased. No diacritic folding — see header. */
 function normalizeName(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, " ");
+  return collapseName(name).toLowerCase();
+}
+
+/**
+ * Round a summed quantity at the emission boundary so binary-float noise
+ * (0.1 + 0.2 = 0.30000000000000004) never reaches the printed store list.
+ * Six decimal places is far below any real-world measurement resolution.
+ */
+function roundQuantity(quantity: number): number {
+  return Math.round(quantity * 1e6) / 1e6;
+}
+
+/** STORE_SECTIONS enum position, for order-independent section choice. */
+const SECTION_RANK = new Map<StoreSection, number>(
+  STORE_SECTIONS.map((section, index) => [section, index])
+);
+
+function sectionRank(section: StoreSection): number {
+  return SECTION_RANK.get(section) ?? STORE_SECTIONS.length;
 }
 
 /** Internal merge bucket, keyed by (normalized name, unit). */
@@ -117,7 +156,7 @@ export function buildShoppingList(week: Week, recipesBySlug: Record<string, Reci
     }
   }
 
-  // Group buckets by section (first-seen section per bucket).
+  // Group buckets by section (earliest enum-order section per bucket).
   const itemsBySection = new Map<StoreSection, MergeBucket[]>();
   for (const bucket of buckets.values()) {
     const group = itemsBySection.get(bucket.section);
@@ -144,7 +183,7 @@ export function buildShoppingList(week: Week, recipesBySlug: Record<string, Reci
       section,
       items: group.map((bucket) => ({
         name: bucket.displayName,
-        quantity: bucket.quantity,
+        quantity: roundQuantity(bucket.quantity),
         unit: bucket.unit,
         safetyNotes: [...bucket.safetyNotes],
       })),
@@ -156,13 +195,14 @@ export function buildShoppingList(week: Week, recipesBySlug: Record<string, Reci
 /** Merge one ingredient occurrence into its (normalized name, unit) bucket. */
 function mergeIngredient(buckets: Map<string, MergeBucket>, ingredient: Ingredient): void {
   const normalizedName = normalizeName(ingredient.name);
+  const displayCandidate = collapseName(ingredient.name);
   // JSON-encoding the pair makes the key collision-free by construction.
   const key = JSON.stringify([normalizedName, ingredient.unit]);
   const existing = buckets.get(key);
   if (existing === undefined) {
     buckets.set(key, {
       normalizedName,
-      displayName: ingredient.name,
+      displayName: displayCandidate,
       quantity: ingredient.quantity,
       unit: ingredient.unit,
       section: ingredient.section,
@@ -171,10 +211,29 @@ function mergeIngredient(buckets: Map<string, MergeBucket>, ingredient: Ingredie
     return;
   }
   existing.quantity += ingredient.quantity;
-  if (
-    ingredient.safetyNote !== undefined &&
-    !existing.safetyNotes.includes(ingredient.safetyNote)
-  ) {
-    existing.safetyNotes.push(ingredient.safetyNote);
+  // Order-independent display name: lexicographically-first (code-point
+  // order) collapsed spelling among the merged occurrences.
+  if (displayCandidate < existing.displayName) {
+    existing.displayName = displayCandidate;
   }
+  // Order-independent section: earliest in STORE_SECTIONS enum order.
+  if (sectionRank(ingredient.section) < sectionRank(existing.section)) {
+    existing.section = ingredient.section;
+  }
+  mergeSafetyNote(existing.safetyNotes, ingredient.safetyNote);
+}
+
+/**
+ * Union a safety note into a bucket's notes, deduplicating
+ * case-insensitively and keeping the first-seen original text.
+ *
+ * ⚠️ Never tighten this dedupe toward dropping notes: safety notes are the
+ * dietary-safety mechanism (golden rules). A duplicated note on the list is
+ * acceptable; a missing one is not.
+ */
+function mergeSafetyNote(notes: string[], note: string | undefined): void {
+  if (note === undefined) return;
+  const lowered = note.toLowerCase();
+  if (notes.some((existing) => existing.toLowerCase() === lowered)) return;
+  notes.push(note);
 }
