@@ -1,0 +1,1 @@
+- `[manual]` Shopping-list aggregation module (`app/content/shopping-list.ts`): derives a week's shopping list from its menu + snack recipes — merged by (normalized name, unit), safety notes unioned, grouped by store section in enum order, deterministic output, no unit conversion by design.
