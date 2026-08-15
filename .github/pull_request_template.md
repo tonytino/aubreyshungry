@@ -1,3 +1,10 @@
+## TL;DR
+<!-- 1–3 plain sentences anyone can understand: what changed and why it matters.
+The pr-tldr CI job requires this section; the plain-language job checks it
+strictly (max 25 words per sentence, active voice, simple words). -->
+
+-
+
 ## Summary
 <!-- What does this PR do? Bullet points preferred. -->
 
