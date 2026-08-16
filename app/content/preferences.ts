@@ -17,7 +17,13 @@ import * as path from "node:path";
 import { z } from "zod";
 import type { ContentError, ValidateResult } from "./validate";
 
-export const PreferencesSchema = z.object({
+/**
+ * `.strict()` (unlike the generated-content schemas in `./schema.ts`):
+ * this file is hand-edited config, so a typo'd or misplaced key (e.g. an
+ * attempt to add a "forbidden ingredients" knob) must be a loud validation
+ * error, never silently stripped.
+ */
+export const PreferencesSchema = z.strictObject({
   /** Batch target for meal-prep recipes: how many servings one cook produces. */
   servingsPerMeal: z.number().int().positive("servingsPerMeal must be a positive integer"),
   /**

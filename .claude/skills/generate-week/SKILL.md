@@ -82,6 +82,10 @@ Write `content/weeks/<isoWeek>.json` and any new
   entirely** — use seeds (pumpkin, sunflower, chia, flax, hemp, sesame)
   instead. NEVER weaken, truncate, or omit the safety note to get a green
   linter — safety text is never scrubbed to pass a gate.
+- **Prose fields are linted too**: `goldenRuleCallouts`, `notes`, `steps`,
+  and `safetyNote` text must itself be linter-clean — name the safe
+  substitute ("use certified-GF tamari"), never the forbidden ingredient
+  ("no soy sauce" would trip the linter even as a warning).
 - Watch the top failure modes: cashew-based "creams"/vegan cheeses in
   anti-inflammatory recipes (substitute sunflower-seed cream, coconut cream,
   or white-bean purée), soy sauce (always "tamari (certified GF)"), bare
@@ -118,7 +122,7 @@ Write `content/weeks/<isoWeek>.json` and any new
   ],
   "storageNotes": "Refrigerate up to 3 days. Reheat salmon and quinoa gently (low power); add spinach and blueberries cold after reheating.",
   "goldenRuleCallouts": [
-    "Naturally gluten-free; keep it that way — no wheat-based add-ins.",
+    "Naturally gluten-free; keep it that way — add-ins must be certified GF.",
     "Fatty fish + turmeric with black pepper: anti-inflammatory anchors for the week."
   ]
 }
@@ -144,12 +148,16 @@ Write `content/weeks/<isoWeek>.json` and any new
 ## 4. Self-check gates — all green before any PR, in this order
 
 ```bash
-pnpm validate:content   # schema + referential integrity + preferences
+pnpm validate:content   # schemas + referential integrity (+ preferences FILE SHAPE only)
 pnpm lint:dietary       # deterministic golden-rule linter
 pnpm preflight          # biome + tsc + full vitest
 ```
 
-Fix content until all three pass. If `lint:dietary` flags something you
+Fix content until all three pass. Note the gates' limits: `validate:content`
+checks the preferences file's shape, NOT that your draft meets the
+preferences targets (fresh-meal floor, fatty fish, snacks, ~30 distinct
+foods) — meeting the targets is verified by you and the adversarial review
+round below, not deterministically. If `lint:dietary` flags something you
 believe is safe, the fix is the owner-gated allowlist
 (`scripts/dietary-safety/terms.mjs`, `safe:human`) — never rewording safety
 text to dodge the scanner, and never shipping red.

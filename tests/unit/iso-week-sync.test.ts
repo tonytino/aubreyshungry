@@ -1,3 +1,6 @@
+import { execFileSync } from "node:child_process";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { isoWeekStartDate } from "../../app/utils/iso-week";
 // @ts-expect-error — .mjs script, no type declarations
@@ -69,6 +72,20 @@ describe("plan-reminder ISO week stays in sync with app/utils/iso-week", () => {
     for (const [date, expected] of cases) {
       expect(isoWeekOfUtc(new Date(`${date}T00:00:00Z`)), date).toBe(expected);
     }
+  });
+
+  it("the CLI (the seam plan-reminder.yml uses) prints the current week to stdout", () => {
+    const script = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../scripts/plan-reminder/current-iso-week.mjs"
+    );
+    // Sample before/after so a midnight-UTC week rollover during the spawn
+    // can never flake the equality check.
+    const before = isoWeekOfUtc(new Date());
+    const stdout = execFileSync(process.execPath, [script], { encoding: "utf-8" });
+    const after = isoWeekOfUtc(new Date());
+    expect(stdout).toMatch(/^\d{4}-W\d{2}\n$/);
+    expect([before, after]).toContain(stdout.trim());
   });
 
   it("currentUtcIsoWeek returns a well-formed identifier for now", () => {

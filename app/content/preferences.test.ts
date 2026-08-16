@@ -90,6 +90,20 @@ describe("validatePreferences", () => {
     }
   });
 
+  it("rejects unknown keys (strict schema), naming the key", () => {
+    // Hand-edited config: a typo'd or smuggled key (e.g. a "forbidden
+    // ingredients" knob — the golden rules are NOT configurable) must fail
+    // loudly, never be silently stripped. Zod reports unrecognized keys at
+    // the object root with the key name in the message.
+    const result = validatePreferences(preferences({ forbiddenIngredients: ["anything"] }));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.some((error) => error.message.includes("forbiddenIngredients"))).toBe(
+        true
+      );
+    }
+  });
+
   it("rejects non-object input without throwing", () => {
     expect(validatePreferences("not a config").ok).toBe(false);
     expect(validatePreferences(null).ok).toBe(false);
