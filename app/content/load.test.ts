@@ -218,35 +218,106 @@ describe("getHomeDigest", () => {
     }
   });
 
-  it("falls back to the newest week on disk when today sits in a gap", () => {
-    // Sep 6 was never published. The page must not go empty.
-    const home = getHomeDigest(archive(), denverNoon("2026-09-09"));
-    expect(home).not.toBeNull();
-    expect(home?.digest.week.weekStart).toBe("2026-09-13");
-  });
-
-  it("falls back when today is after every published week", () => {
-    const home = getHomeDigest(archive(), denverNoon("2026-12-02"));
-    expect(home?.digest.week.weekStart).toBe("2026-09-13");
-  });
-
-  it("falls back when today is before the earliest published week", () => {
-    const home = getHomeDigest(archive(), denverNoon("2026-01-07"));
-    expect(home?.digest.week.weekStart).toBe("2026-09-13");
-    expect(home?.newerWeekStart).toBeNull();
-  });
-
-  it("falls back to the latest when only future weeks exist", () => {
-    const dir = makeContentDir({
-      "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
-      "recipes/spinach-berry-salad.json": JSON.stringify(spinachSaladRecipe),
-      "recipes/roasted-almonds.json": JSON.stringify(almondSnackRecipe),
-      "weeks/2026-11-08.json": weekDoc("2026-11-08"),
-      "weeks/2026-11-15.json": weekDoc("2026-11-15"),
+  // Fallback order when no week contains today: (2) the newest week that
+  // has already begun, then (3) — only if none has — the earliest future
+  // week. Step 2 before step 3 is the whole point: leading with a plan that
+  // has not started yet, while the week people are living through sits in
+  // the archive, is the bug this ordering fixes.
+  describe("fallback when today is in a publishing gap", () => {
+    it("prefers the started week over a newer one that has not begun", () => {
+      // Sep 6 was never published. Aug 30's week has run; Sep 13's has not
+      // started for another four days. Lead with the one that happened.
+      const home = getHomeDigest(archive(), denverNoon("2026-09-09"));
+      expect(home).not.toBeNull();
+      expect(home?.digest.week.weekStart).toBe("2026-08-30");
+      // ...and still surface the upcoming plan as a link.
+      expect(home?.newerWeekStart).toBe("2026-09-13");
     });
-    const home = getHomeDigest(dir, denverNoon("2026-08-19"));
-    expect(home?.digest.week.weekStart).toBe("2026-11-15");
-    expect(home?.newerWeekStart).toBeNull();
+
+    it("prefers the started week with only one past and one future week on disk", () => {
+      // The reviewer's minimal case: nothing contains today, exactly one
+      // week behind it and one ahead. Swapping steps 2 and 3 would pick
+      // 2026-09-13 here, so this test pins the ORDER, not just the outcome.
+      const dir = makeContentDir({
+        "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
+        "recipes/spinach-berry-salad.json": JSON.stringify(spinachSaladRecipe),
+        "recipes/roasted-almonds.json": JSON.stringify(almondSnackRecipe),
+        "weeks/2026-08-16.json": weekDoc("2026-08-16"),
+        "weeks/2026-09-13.json": weekDoc("2026-09-13"),
+      });
+      const home = getHomeDigest(dir, denverNoon("2026-09-02"));
+      expect(home?.digest.week.weekStart).toBe("2026-08-16");
+      expect(home?.newerWeekStart).toBe("2026-09-13");
+    });
+
+    it("picks the NEWEST begun week, not merely the first one behind today", () => {
+      const home = getHomeDigest(archive(), denverNoon("2026-09-09"));
+      // 2026-08-16 and 2026-08-23 have also begun; 2026-08-30 is the newest.
+      expect(home?.digest.week.weekStart).toBe("2026-08-30");
+    });
+
+    it("uses the newest week when today is after every published week", () => {
+      const home = getHomeDigest(archive(), denverNoon("2026-12-02"));
+      expect(home?.digest.week.weekStart).toBe("2026-09-13");
+      expect(home?.newerWeekStart).toBeNull();
+    });
+
+    it("uses the EARLIEST future week when no week has begun", () => {
+      // Step 3. Today precedes every published week, so there is no started
+      // week to prefer — show the one that starts soonest, not the furthest
+      // out. This is the test that fails if step 3 were `weeks[0]`.
+      const home = getHomeDigest(archive(), denverNoon("2026-01-07"));
+      expect(home?.digest.week.weekStart).toBe("2026-08-16");
+      expect(home?.newerWeekStart).toBe("2026-08-23");
+    });
+
+    it("uses the earliest future week when only future weeks exist", () => {
+      const dir = makeContentDir({
+        "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
+        "recipes/spinach-berry-salad.json": JSON.stringify(spinachSaladRecipe),
+        "recipes/roasted-almonds.json": JSON.stringify(almondSnackRecipe),
+        "weeks/2026-11-08.json": weekDoc("2026-11-08"),
+        "weeks/2026-11-15.json": weekDoc("2026-11-15"),
+      });
+      const home = getHomeDigest(dir, denverNoon("2026-08-19"));
+      expect(home?.digest.week.weekStart).toBe("2026-11-08");
+      expect(home?.newerWeekStart).toBe("2026-11-15");
+    });
+
+    it("uses the newest week when only past weeks exist", () => {
+      const dir = makeContentDir({
+        "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
+        "recipes/spinach-berry-salad.json": JSON.stringify(spinachSaladRecipe),
+        "recipes/roasted-almonds.json": JSON.stringify(almondSnackRecipe),
+        "weeks/2026-08-16.json": weekDoc("2026-08-16"),
+        "weeks/2026-08-23.json": weekDoc("2026-08-23"),
+      });
+      const home = getHomeDigest(dir, denverNoon("2026-10-07"));
+      expect(home?.digest.week.weekStart).toBe("2026-08-23");
+      expect(home?.newerWeekStart).toBeNull();
+    });
+  });
+
+  describe("with exactly one week on disk", () => {
+    function soloDir(weekStart: string): string {
+      return makeContentDir({
+        "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
+        "recipes/spinach-berry-salad.json": JSON.stringify(spinachSaladRecipe),
+        "recipes/roasted-almonds.json": JSON.stringify(almondSnackRecipe),
+        [`weeks/${weekStart}.json`]: weekDoc(weekStart),
+      });
+    }
+
+    it.each([
+      ["containing today", "2026-08-16", "2026-08-19"],
+      ["entirely in the past", "2026-08-16", "2026-10-07"],
+      ["entirely in the future", "2026-11-08", "2026-08-19"],
+    ])("shows the only week when it is %s", (_label, weekStart, today) => {
+      const home = getHomeDigest(soloDir(weekStart), denverNoon(today));
+      expect(home?.digest.week.weekStart).toBe(weekStart);
+      // Nothing newer exists, so there is no link to offer.
+      expect(home?.newerWeekStart).toBeNull();
+    });
   });
 
   it("carries the displayed week's recipes and derived shopping list", () => {
@@ -275,8 +346,11 @@ describe("getHomeDigest", () => {
     });
 
     it("skips over an unpublished week to the next one that exists", () => {
-      // Displaying Aug 30; Sep 6 is missing, so the pointer is Sep 13.
-      expect(getHomeDigest(archive(), denverNoon("2026-09-02"))?.newerWeekStart).toBe("2026-09-13");
+      // Today is inside Aug 30's span, so that week is displayed; Sep 6 is
+      // missing, so the pointer jumps to Sep 13.
+      const home = getHomeDigest(archive(), denverNoon("2026-09-02"));
+      expect(home?.digest.week.weekStart).toBe("2026-08-30");
+      expect(home?.newerWeekStart).toBe("2026-09-13");
     });
 
     it("is null when the displayed week is the newest on disk", () => {

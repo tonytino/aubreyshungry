@@ -104,10 +104,22 @@ export type HomeDigest = {
  * next week's menu and shopping list while the household is still working
  * through the current one.
  *
- * Fallback: when no published week contains today — a skipped week, or only
- * older (or only future) weeks on disk — fall back to the newest week on
- * disk rather than rendering nothing. A gap in publishing must degrade to a
- * stale-but-real digest, never to an empty front page.
+ * Fallback when no published week contains today (a skipped week, or a site
+ * that has only just started publishing), in order:
+ *
+ *   1. the week containing today — the normal case, above;
+ *   2. else the newest week that has ALREADY BEGUN (`weekStart <= today`);
+ *   3. else — only when nothing has begun — the earliest future week.
+ *
+ * Step 2 is the one that matters. Falling back to the newest week on disk
+ * would lead with a plan that has not started yet whenever the next week is
+ * published early and the current one was skipped: the site would show a
+ * menu for days away while the week people are actually living through sat
+ * in the archive. Preferring the started week keeps the front page about
+ * now, and the `newerWeekStart` link still surfaces the upcoming plan.
+ *
+ * Step 3 exists so a brand-new site that has published only an upcoming
+ * plan shows that plan rather than an empty page.
  *
  * `now` is injectable for tests. It is read here, in server-only code called
  * from a loader, and never during component render — see the warning in
@@ -121,12 +133,20 @@ export function getHomeDigest(
   if (weeks.length === 0) return null;
 
   const today = denverToday(now);
-  // `weeks` is newest-first, so the first containing match is the only one
-  // (weeks cannot overlap — the identifier is unique and every span is
-  // exactly 7 days).
-  const index = weeks.findIndex((week) => weekContains(week.weekStart, today));
-  // -1 → no week covers today; fall back to the newest on disk (index 0).
-  const chosenIndex = index === -1 ? 0 : index;
+  // `weeks` is newest-first, so the first match of each search below is the
+  // newest qualifying week. Weeks cannot overlap — the identifier is unique
+  // and every span is exactly 7 days — so at most one can contain today.
+  let chosenIndex = weeks.findIndex((week) => weekContains(week.weekStart, today));
+  if (chosenIndex === -1) {
+    // Step 2. Both sides are zero-padded YYYY-MM-DD, so a string compare is
+    // a date compare (same reason the newest-first sort works on strings).
+    chosenIndex = weeks.findIndex((week) => week.weekStart <= today);
+  }
+  if (chosenIndex === -1) {
+    // Step 3. Nothing has begun, so every week is in the future; the oldest
+    // entry of a newest-first list is the soonest one to start.
+    chosenIndex = weeks.length - 1;
+  }
   const chosen = weeks[chosenIndex];
   if (chosen === undefined) return null;
 
