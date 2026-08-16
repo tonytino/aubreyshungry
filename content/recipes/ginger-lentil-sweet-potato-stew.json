@@ -1,0 +1,113 @@
+{
+  "slug": "ginger-lentil-sweet-potato-stew",
+  "title": "Ginger Lentil and Sweet Potato Stew",
+  "servings": 4,
+  "prepMinutes": 20,
+  "cookMinutes": 40,
+  "style": "meal-prep",
+  "ingredients": [
+    {
+      "name": "brown lentils",
+      "quantity": 1.5,
+      "unit": "cup",
+      "section": "pantry"
+    },
+    {
+      "name": "sweet potato",
+      "quantity": 1.5,
+      "unit": "lb",
+      "section": "produce"
+    },
+    {
+      "name": "carrot",
+      "quantity": 3,
+      "unit": "piece",
+      "section": "produce"
+    },
+    {
+      "name": "celery",
+      "quantity": 3,
+      "unit": "stalk",
+      "section": "produce"
+    },
+    {
+      "name": "yellow onion",
+      "quantity": 1,
+      "unit": "piece",
+      "section": "produce"
+    },
+    {
+      "name": "garlic",
+      "quantity": 4,
+      "unit": "clove",
+      "section": "produce"
+    },
+    {
+      "name": "fresh ginger",
+      "quantity": 2,
+      "unit": "tbsp",
+      "section": "produce"
+    },
+    {
+      "name": "kale",
+      "quantity": 4,
+      "unit": "oz",
+      "section": "produce"
+    },
+    {
+      "name": "lemon",
+      "quantity": 1,
+      "unit": "piece",
+      "section": "produce"
+    },
+    {
+      "name": "vegetable broth (certified GF)",
+      "quantity": 6,
+      "unit": "cup",
+      "section": "pantry"
+    },
+    {
+      "name": "extra-virgin olive oil",
+      "quantity": 2,
+      "unit": "tbsp",
+      "section": "pantry"
+    },
+    {
+      "name": "ground turmeric",
+      "quantity": 1.5,
+      "unit": "tsp",
+      "section": "spices"
+    },
+    {
+      "name": "ground cumin",
+      "quantity": 1,
+      "unit": "tsp",
+      "section": "spices"
+    },
+    {
+      "name": "black pepper",
+      "quantity": 0.5,
+      "unit": "tsp",
+      "section": "spices"
+    },
+    {
+      "name": "sea salt",
+      "quantity": 1,
+      "unit": "tsp",
+      "section": "spices"
+    }
+  ],
+  "steps": [
+    "Dice the onion, carrot, and celery. Peel and cube the sweet potato. Mince the garlic and ginger.",
+    "Warm the olive oil in a large pot and soften the onion, carrot, and celery for 8 minutes.",
+    "Stir in the garlic, ginger, turmeric, cumin, and black pepper and cook for 1 minute, until fragrant.",
+    "Add the lentils, sweet potato, and broth. Simmer for 30 minutes, until the lentils are tender.",
+    "Stir the chopped kale through and cook 3 more minutes. Season with the sea salt and finish with lemon juice."
+  ],
+  "storageNotes": "Refrigerate up to 4 days, or freeze up to 3 months. Reheat on the stove over medium-low heat, adding a splash of water since the lentils keep thickening. Add a fresh squeeze of lemon after reheating.",
+  "goldenRuleCallouts": [
+    "Broth is the usual hidden trap in a stew: use a certified gluten-free carton, or make it from scratch.",
+    "Turmeric, ginger, and garlic all appear here in cooking amounts rather than as a garnish.",
+    "Lentils and kale carry the fiber load that feeds the gut microbiome."
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "weekStart": "2026-08-16",
+  "menu": [
+    {
+      "recipeSlug": "salmon-quinoa-power-bowls",
+      "days": ["sunday", "tuesday"],
+      "note": "Roast the salmon and cook the quinoa Sunday; Tuesday is a reheat."
+    },
+    {
+      "recipeSlug": "ginger-lentil-sweet-potato-stew",
+      "days": ["monday", "wednesday"],
+      "note": "Also made Sunday. It thickens overnight, so loosen it with water when reheating."
+    },
+    {
+      "recipeSlug": "sardine-white-bean-salad",
+      "days": ["thursday"],
+      "note": "No cooking — assembled from the pantry when the batch food runs out."
+    },
+    {
+      "recipeSlug": "turmeric-chickpea-cauliflower-skillet",
+      "days": ["friday"],
+      "note": "One pan, about 25 minutes."
+    },
+    {
+      "recipeSlug": "seared-trout-with-lemon-greens",
+      "days": ["saturday"],
+      "note": "Buy the trout Saturday where possible. If it comes with the Sunday shop, freeze it on arrival and thaw it in the refrigerator Friday night."
+    }
+  ],
+  "snacks": [
+    "mixed-berry-chia-yogurt-cups",
+    "banana-sunflower-cinnamon-bites",
+    "sesame-herb-hummus-with-crudites"
+  ],
+  "notes": "Sunday is the shop-and-batch-cook day: the salmon bowls and the lentil stew are both made then and cover four days. Thursday through Saturday are cooked fresh. Three fatty-fish meals clear the two-per-week floor, and every meal leans on turmeric, ginger, or garlic in cooking amounts. No tree nut is used anywhere this week; seeds and sunflower seed butter do that job. The seed butter is the one jarred product here, so buy a brand made in a dedicated nut-free facility and read its allergen statement — shared grinding lines are common. Planned around the fruit you already have: strawberries, blueberries, raspberries, blackberries, and bananas. Both fruit snacks are made on Sunday, because none of this fruit would survive to Saturday. It all still appears on the shopping list — the list is derived from the recipes, so nothing filters it out — so cross off whichever of the five you already have enough of. The one timing catch is Saturday's trout: raw fish cannot wait in the refrigerator from Sunday, so buy it that day or freeze it and thaw it Friday night."
+}

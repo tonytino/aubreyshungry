@@ -1,0 +1,70 @@
+{
+  "slug": "mixed-berry-chia-yogurt-cups",
+  "title": "Mixed Berry Chia Yogurt Cups",
+  "servings": 4,
+  "prepMinutes": 10,
+  "cookMinutes": 0,
+  "style": "snack",
+  "ingredients": [
+    {
+      "name": "plain whole-milk yogurt",
+      "quantity": 3,
+      "unit": "cup",
+      "section": "dairy"
+    },
+    {
+      "name": "strawberries",
+      "quantity": 1,
+      "unit": "cup",
+      "section": "produce"
+    },
+    {
+      "name": "blueberries",
+      "quantity": 0.75,
+      "unit": "cup",
+      "section": "produce"
+    },
+    {
+      "name": "raspberries",
+      "quantity": 0.75,
+      "unit": "cup",
+      "section": "produce"
+    },
+    {
+      "name": "blackberries",
+      "quantity": 0.75,
+      "unit": "cup",
+      "section": "produce"
+    },
+    {
+      "name": "chia seeds",
+      "quantity": 3,
+      "unit": "tbsp",
+      "section": "pantry"
+    },
+    {
+      "name": "ground flaxseed",
+      "quantity": 2,
+      "unit": "tbsp",
+      "section": "pantry"
+    },
+    {
+      "name": "ground cinnamon",
+      "quantity": 0.5,
+      "unit": "tsp",
+      "section": "spices"
+    }
+  ],
+  "steps": [
+    "On Sunday, stir the chia seeds, ground flaxseed, and cinnamon into the yogurt.",
+    "Divide the yogurt between four jars and chill at least 2 hours, so the chia softens and thickens it.",
+    "Hull and halve the strawberries; leave the other berries whole.",
+    "Top each jar with the berries just before eating, not at assembly — use what you have on hand; the proportions between them do not matter."
+  ],
+  "storageNotes": "Make the yogurt base Sunday and refrigerate it up to 3 days. Keep the berries separate and add them per jar as you eat: these are already near the end of their life, and raspberries and blackberries weep into yogurt within a day. The chia keeps absorbing liquid, so the base thickens each day; loosen with a spoonful of milk or water if it gets too stiff.",
+  "goldenRuleCallouts": [
+    "Plain yogurt only — sweetened tubs are the added-sugar trap in a snack like this.",
+    "Built around the four berries already in the house, assembled Sunday because they will not last to Saturday.",
+    "Berries, chia, and flax cover fiber and omega-3s without a packet of anything."
+  ]
+}

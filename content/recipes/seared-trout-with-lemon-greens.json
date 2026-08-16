@@ -1,0 +1,86 @@
+{
+  "slug": "seared-trout-with-lemon-greens",
+  "title": "Seared Trout with Lemon Greens",
+  "servings": 4,
+  "prepMinutes": 10,
+  "cookMinutes": 15,
+  "style": "fresh",
+  "ingredients": [
+    {
+      "name": "rainbow trout fillet",
+      "quantity": 1.5,
+      "unit": "lb",
+      "section": "protein",
+      "safetyNote": "buy Saturday and cook it that day, or freeze it on arrival and thaw it in the refrigerator Friday night — raw fish keeps only 1 to 2 days refrigerated"
+    },
+    {
+      "name": "arugula",
+      "quantity": 5,
+      "unit": "oz",
+      "section": "produce"
+    },
+    {
+      "name": "kale",
+      "quantity": 4,
+      "unit": "oz",
+      "section": "produce"
+    },
+    {
+      "name": "garlic",
+      "quantity": 3,
+      "unit": "clove",
+      "section": "produce"
+    },
+    {
+      "name": "fresh ginger",
+      "quantity": 1,
+      "unit": "tbsp",
+      "section": "produce"
+    },
+    {
+      "name": "lemon",
+      "quantity": 2,
+      "unit": "piece",
+      "section": "produce"
+    },
+    {
+      "name": "pumpkin seeds",
+      "quantity": 0.25,
+      "unit": "cup",
+      "section": "pantry"
+    },
+    {
+      "name": "extra-virgin olive oil",
+      "quantity": 3,
+      "unit": "tbsp",
+      "section": "pantry"
+    },
+    {
+      "name": "black pepper",
+      "quantity": 0.5,
+      "unit": "tsp",
+      "section": "spices"
+    },
+    {
+      "name": "sea salt",
+      "quantity": 0.75,
+      "unit": "tsp",
+      "section": "spices"
+    }
+  ],
+  "steps": [
+    "If the trout was bought with the Sunday shop, freeze it on arrival and move it to the refrigerator Friday night to thaw.",
+    "Pat the trout dry and season it with the black pepper and sea salt.",
+    "Toast the pumpkin seeds in the dry pan for 2 minutes, until they pop, then set them aside.",
+    "Sear the fillets skin-side down in 1 tablespoon olive oil for 4 minutes, then flip and cook 2 minutes more.",
+    "Lift the fish out. In the same pan, cook the garlic and ginger for 30 seconds.",
+    "Add the stripped kale and cook 2 minutes, then fold the arugula through until it just wilts.",
+    "Return the trout to the pan, add lemon juice and the remaining olive oil, and scatter the pumpkin seeds over."
+  ],
+  "goldenRuleCallouts": [
+    "A third fatty-fish meal, clearing the two-per-week floor with room to spare.",
+    "Toasted seeds finish the plate, so no tree nuts are needed for crunch.",
+    "Raw fish is the one item this week that cannot sit in the refrigerator from Sunday: freeze it or buy it the same day."
+  ],
+  "storageNotes": "Buy the trout Saturday and cook it the same day where possible. Bought with the Sunday shop, it must go straight into the freezer and thaw in the refrigerator overnight Friday — raw fish keeps only 1 to 2 days refrigerated, so it cannot simply wait in the fridge all week. Cook within a day of thawing and do not refreeze."
+}
