@@ -82,10 +82,12 @@ Write `content/weeks/<isoWeek>.json` and any new
   entirely** — use seeds (pumpkin, sunflower, chia, flax, hemp, sesame)
   instead. NEVER weaken, truncate, or omit the safety note to get a green
   linter — safety text is never scrubbed to pass a gate.
-- **Prose fields are linted too**: `goldenRuleCallouts`, `notes`, `steps`,
-  and `safetyNote` text must itself be linter-clean — name the safe
-  substitute ("use certified-GF tamari"), never the forbidden ingredient
-  ("no soy sauce" would trip the linter even as a warning).
+- **Prose fields are linted too**: the linter scans EVERY string value and
+  key in content JSON (`goldenRuleCallouts`, `notes`, `steps`, `safetyNote`,
+  titles, ingredient names — all of it), so all prose must itself be
+  linter-clean — name the safe substitute ("use certified-GF tamari"),
+  never the forbidden ingredient ("no soy sauce" would trip the linter
+  even as a warning).
 - Watch the top failure modes: cashew-based "creams"/vegan cheeses in
   anti-inflammatory recipes (substitute sunflower-seed cream, coconut cream,
   or white-bean purée), soy sauce (always "tamari (certified GF)"), bare
