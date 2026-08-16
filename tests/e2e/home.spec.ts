@@ -33,9 +33,19 @@ test("archive page renders its empty state", async ({ page }) => {
 });
 
 test("unknown week renders the not-found page with a real 404 status", async ({ page }) => {
-  const response = await page.goto("/week/2026-W20");
+  // A well-formed identifier (a real Sunday) that simply isn't published.
+  const response = await page.goto("/week/2026-05-17");
   // Assert the HTTP status too — a regression to 200-with-not-found-UI must
   // not pass e2e (search engines and caches care about the status line).
+  expect(response?.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1, name: "Week not found" })).toBeVisible();
+});
+
+test("a non-Sunday week URL is a 404, not a crash", async ({ page }) => {
+  // 2026-05-18 is a Monday: the route rejects it before any content lookup,
+  // so a mistyped or hand-edited URL degrades to the same not-found page
+  // rather than a 500 from weekStartDate throwing.
+  const response = await page.goto("/week/2026-05-18");
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("heading", { level: 1, name: "Week not found" })).toBeVisible();
 });

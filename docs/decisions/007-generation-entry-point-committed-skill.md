@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. The reasoning below stands; only the week **identifier** and the runbook specifics that hang off it moved on — ADR-008 (`docs/decisions/008-sunday-week-dated-identifier.md`) made weeks Sunday→Saturday and named them by their starting Sunday's date (`content/weeks/<YYYY-MM-DD>.json`), and with it changed the invocation, the branch rule, the PR title, the reminder script's name, and which week the reminder checks. Where any specific recorded below disagrees with ADR-008, ADR-008 wins.
 
 ## Context
 

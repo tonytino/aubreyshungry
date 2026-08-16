@@ -50,6 +50,25 @@ describe("MenuByDay", () => {
     expect(screen.getAllByRole("link", { name: "Salmon Quinoa Bowl" })).toHaveLength(2);
   });
 
+  it("puts Sunday FIRST and Saturday last — the week runs Sunday→Saturday", () => {
+    // The regression this guards: under the old Monday-first ordering the
+    // Sunday batch-cook session rendered dead last, after the meals it
+    // produces. Deliberately listed out of order in the menu array so the
+    // assertion is about DAYS' order, not input order.
+    const weekendMenu: Meal[] = [
+      { recipeSlug: "spinach-berry-salad", days: ["saturday", "wednesday"] },
+      { recipeSlug: "salmon-quinoa-bowl", days: ["sunday", "monday"] },
+    ];
+    render(<MenuByDay menu={weekendMenu} recipesBySlug={recipesBySlug} />);
+    const headings = screen.getAllByRole("heading", { level: 3 });
+    expect(headings.map((h) => h.textContent)).toEqual([
+      "Sunday",
+      "Monday",
+      "Wednesday",
+      "Saturday",
+    ]);
+  });
+
   it("omits days with nothing planned", () => {
     render(<MenuByDay menu={menu} recipesBySlug={recipesBySlug} />);
     expect(screen.queryByRole("heading", { name: "Sunday" })).not.toBeInTheDocument();

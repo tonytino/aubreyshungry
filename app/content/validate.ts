@@ -101,7 +101,7 @@ function listJsonFiles(dir: string): string[] {
  *
  * - every `weeks/*.json` file parses and matches `WeekSchema`;
  * - every `recipes/*.json` file parses and matches `RecipeSchema`;
- * - each file's basename matches its identifier (`<isoWeek>.json`,
+ * - each file's basename matches its identifier (`<weekStart>.json`,
  *   `<slug>.json`) — the filename IS the identity per ADR-006;
  * - no duplicate recipe slugs or week identifiers;
  * - referential integrity: every recipeSlug referenced by any week
@@ -169,20 +169,20 @@ export function validateContentDir(dir: string): ContentDirResult {
       continue;
     }
     const week = result.data;
-    if (weekIds.has(week.isoWeek)) {
+    if (weekIds.has(week.weekStart)) {
       errors.push({
         file: relative,
-        path: "isoWeek",
-        message: `duplicate week "${week.isoWeek}"`,
+        path: "weekStart",
+        message: `duplicate week "${week.weekStart}"`,
       });
       continue;
     }
-    weekIds.add(week.isoWeek);
-    if (week.isoWeek !== path.basename(name, ".json")) {
+    weekIds.add(week.weekStart);
+    if (week.weekStart !== path.basename(name, ".json")) {
       errors.push({
         file: relative,
-        path: "isoWeek",
-        message: `isoWeek "${week.isoWeek}" does not match its filename (expected ${week.isoWeek}.json)`,
+        path: "weekStart",
+        message: `weekStart "${week.weekStart}" does not match its filename (expected ${week.weekStart}.json)`,
       });
     }
     weeks.push(week);
@@ -198,13 +198,13 @@ export function validateContentDir(dir: string): ContentDirResult {
         errors.push({
           file: relative,
           path: `menu.${index}.recipeSlug`,
-          message: `week "${week.isoWeek}" references missing recipe "${meal.recipeSlug}"`,
+          message: `week "${week.weekStart}" references missing recipe "${meal.recipeSlug}"`,
         });
       } else if (recipe.style === "snack") {
         errors.push({
           file: relative,
           path: `menu.${index}.recipeSlug`,
-          message: `week "${week.isoWeek}" menu references "${meal.recipeSlug}", which is a snack recipe — menu entries must be "meal-prep" or "fresh"`,
+          message: `week "${week.weekStart}" menu references "${meal.recipeSlug}", which is a snack recipe — menu entries must be "meal-prep" or "fresh"`,
         });
       }
     }
@@ -214,13 +214,13 @@ export function validateContentDir(dir: string): ContentDirResult {
         errors.push({
           file: relative,
           path: `snacks.${index}`,
-          message: `week "${week.isoWeek}" references missing recipe "${slug}"`,
+          message: `week "${week.weekStart}" references missing recipe "${slug}"`,
         });
       } else if (recipe.style !== "snack") {
         errors.push({
           file: relative,
           path: `snacks.${index}`,
-          message: `week "${week.isoWeek}" snacks references "${slug}", which is a "${recipe.style}" recipe — snacks must reference "snack" recipes`,
+          message: `week "${week.weekStart}" snacks references "${slug}", which is a "${recipe.style}" recipe — snacks must reference "snack" recipes`,
         });
       }
     }

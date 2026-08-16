@@ -50,7 +50,7 @@ function recipeJson(overrides: Record<string, unknown> = {}): string {
 
 function weekJson(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
-    isoWeek: "2026-W33",
+    weekStart: "2026-08-16",
     menu: [{ recipeSlug: "turmeric-ginger-trout", days: ["monday", "wednesday"] }],
     snacks: [],
     ...overrides,
@@ -62,17 +62,19 @@ describe("validateWeek", () => {
     const result = validateWeek(JSON.parse(weekJson()));
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data.isoWeek).toBe("2026-W33");
+      expect(result.data.weekStart).toBe("2026-08-16");
       expect(result.data.menu[0].recipeSlug).toBe("turmeric-ginger-trout");
     }
   });
 
   it("returns typed errors with paths on failure", () => {
-    const result = validateWeek({ isoWeek: "2026-W54", menu: [], snacks: [] });
+    // A Monday: shape-valid, real date, wrong weekday — plus an empty menu,
+    // so two independent rules must both be reported.
+    const result = validateWeek({ weekStart: "2026-08-17", menu: [], snacks: [] });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       const paths = result.errors.map((error) => error.path);
-      expect(paths).toContain("isoWeek");
+      expect(paths).toContain("weekStart");
       expect(paths).toContain("menu");
     }
   });
@@ -138,7 +140,7 @@ describe("validateContentDir", () => {
           { name: "fresh rosemary", quantity: 2, unit: "sprig", section: "produce" },
         ],
       }),
-      "weeks/2026-W33.json": weekJson({ snacks: ["rosemary-almonds"] }),
+      "weeks/2026-08-16.json": weekJson({ snacks: ["rosemary-almonds"] }),
     });
     const result = validateContentDir(dir);
     expect(result.errors).toEqual([]);
@@ -160,22 +162,22 @@ describe("validateContentDir", () => {
 
   it("reports schema violations with file and path", () => {
     const dir = makeContentDir({
-      "weeks/2026-W33.json": weekJson({ menu: [] }),
+      "weeks/2026-08-16.json": weekJson({ menu: [] }),
     });
     const result = validateContentDir(dir);
     expect(result.ok).toBe(false);
-    expect(result.errors[0]?.file).toBe(path.join("weeks", "2026-W33.json"));
+    expect(result.errors[0]?.file).toBe(path.join("weeks", "2026-08-16.json"));
     expect(result.errors[0]?.path).toBe("menu");
   });
 
   it("reports a dangling menu reference naming the week and slug", () => {
     const dir = makeContentDir({
-      "weeks/2026-W33.json": weekJson(),
+      "weeks/2026-08-16.json": weekJson(),
     });
     const result = validateContentDir(dir);
     expect(result.ok).toBe(false);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]?.message).toContain("2026-W33");
+    expect(result.errors[0]?.message).toContain("2026-08-16");
     expect(result.errors[0]?.message).toContain("turmeric-ginger-trout");
     expect(result.errors[0]?.path).toBe("menu.0.recipeSlug");
   });
@@ -183,12 +185,12 @@ describe("validateContentDir", () => {
   it("reports a dangling snack reference naming the week and slug", () => {
     const dir = makeContentDir({
       "recipes/turmeric-ginger-trout.json": recipeJson(),
-      "weeks/2026-W33.json": weekJson({ snacks: ["rosemary-almonds"] }),
+      "weeks/2026-08-16.json": weekJson({ snacks: ["rosemary-almonds"] }),
     });
     const result = validateContentDir(dir);
     expect(result.ok).toBe(false);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]?.message).toContain("2026-W33");
+    expect(result.errors[0]?.message).toContain("2026-08-16");
     expect(result.errors[0]?.message).toContain("rosemary-almonds");
     expect(result.errors[0]?.path).toBe("snacks.0");
   });
@@ -196,7 +198,7 @@ describe("validateContentDir", () => {
   it("skips a DIRECTORY named *.json instead of throwing EISDIR", () => {
     const dir = makeContentDir({
       "recipes/turmeric-ginger-trout.json": recipeJson(),
-      "weeks/2026-W33.json": weekJson(),
+      "weeks/2026-08-16.json": weekJson(),
     });
     fs.mkdirSync(path.join(dir, "recipes", "evil.json"));
     const result = validateContentDir(dir);
@@ -209,7 +211,7 @@ describe("validateContentDir", () => {
     const dir = makeContentDir({
       // meal-prep style recipe referenced from snacks.
       "recipes/turmeric-ginger-trout.json": recipeJson(),
-      "weeks/2026-W33.json": weekJson({
+      "weeks/2026-08-16.json": weekJson({
         menu: [{ recipeSlug: "turmeric-ginger-trout", days: ["monday"] }],
         snacks: ["turmeric-ginger-trout"],
       }),
@@ -229,7 +231,7 @@ describe("validateContentDir", () => {
         style: "snack",
         storageNotes: undefined,
       }),
-      "weeks/2026-W33.json": weekJson({
+      "weeks/2026-08-16.json": weekJson({
         menu: [{ recipeSlug: "rosemary-almonds", days: ["monday"] }],
       }),
     });
@@ -245,7 +247,7 @@ describe("validateContentDir", () => {
       "recipes/turmeric-ginger-trout.json": recipeJson(),
       // Same declared slug under a different filename.
       "recipes/zz-duplicate.json": recipeJson(),
-      "weeks/2026-W33.json": weekJson(),
+      "weeks/2026-08-16.json": weekJson(),
     });
     const result = validateContentDir(dir);
     expect(result.ok).toBe(false);
@@ -263,10 +265,10 @@ describe("validateContentDir", () => {
     expect(result.errors[0]?.message).toContain("does not match its filename");
   });
 
-  it("reports an isoWeek that does not match its filename", () => {
+  it("reports a weekStart that does not match its filename", () => {
     const dir = makeContentDir({
       "recipes/turmeric-ginger-trout.json": recipeJson(),
-      "weeks/2026-W34.json": weekJson(),
+      "weeks/2026-08-23.json": weekJson(),
     });
     const result = validateContentDir(dir);
     expect(result.ok).toBe(false);
@@ -276,9 +278,9 @@ describe("validateContentDir", () => {
   it("collects errors across many files instead of stopping at the first", () => {
     const dir = makeContentDir({
       "recipes/broken.json": "[not json",
-      "weeks/2026-W33.json": weekJson(),
-      "weeks/2026-W34.json": weekJson({
-        isoWeek: "2026-W34",
+      "weeks/2026-08-16.json": weekJson(),
+      "weeks/2026-08-23.json": weekJson({
+        weekStart: "2026-08-23",
         menu: [{ recipeSlug: "missing-dish", days: ["friday"] }],
       }),
     });

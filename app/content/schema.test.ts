@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  DAYS,
   type Ingredient,
   IngredientSchema,
-  IsoWeekSchema,
   type Meal,
   MealSchema,
   type Recipe,
   RecipeSchema,
   type Week,
   WeekSchema,
+  WeekStartSchema,
 } from "./schema";
 
 // All sample food data below follows the golden rules in
@@ -58,7 +59,7 @@ const validMeal: Meal = {
 };
 
 const validWeek: Week = {
-  isoWeek: "2026-W33",
+  weekStart: "2026-08-16",
   menu: [validMeal],
   snacks: ["rosemary-almonds"],
 };
@@ -180,32 +181,94 @@ describe("MealSchema", () => {
   });
 });
 
-describe("IsoWeekSchema", () => {
+describe("DAYS", () => {
+  // This order is load-bearing, not cosmetic: MenuByDay renders days by
+  // filtering DAYS, so a wrong order silently mis-sorts the whole menu.
+  it("is Sunday-first, matching the Sunday→Saturday planning week", () => {
+    expect(DAYS).toEqual([
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ]);
+  });
+
+  it("lines up with Date.getUTCDay() indices (0 = Sunday)", () => {
+    // Anchored on a known Sunday so the alignment is asserted, not assumed.
+    const sunday = Date.UTC(2026, 7, 16);
+    for (const [index, day] of DAYS.entries()) {
+      const date = new Date(sunday + index * 86_400_000);
+      expect(date.getUTCDay(), day).toBe(index);
+    }
+  });
+});
+
+describe("WeekStartSchema", () => {
   it.each([
-    "2026-W01",
-    "2026-W09",
-    "2026-W33",
-    // Long ISO years (53 weeks): 2026 (Jan 1 is a Thursday) and 2020
-    // (leap year, Jan 1 is a Wednesday).
-    "2026-W53",
-    "2020-W53",
+    "2026-08-16", // a plain mid-year Sunday
+    "2026-01-04", // first Sunday of a year
+    "2026-12-27", // last Sunday of a year — its week spills into 2027
+    "2024-02-25", // leap-year February
+    "2026-03-08", // the US spring-forward Sunday (a 23-hour day locally)
+    "2026-11-01", // the US fall-back Sunday (a 25-hour day locally)
   ])("accepts %s", (value) => {
-    expect(IsoWeekSchema.safeParse(value).success).toBe(true);
+    expect(WeekStartSchema.safeParse(value).success).toBe(true);
   });
 
   it.each([
-    ["week 00", "2026-W00"],
-    ["week 54", "2026-W54"],
-    ["W53 in a 52-week year", "2025-W53"],
-    ["week 99", "2026-W99"],
-    ["missing W", "2026-33"],
-    ["lowercase w", "2026-w33"],
-    ["single-digit week", "2026-W3"],
-    ["two-digit year", "26-W33"],
-    ["no separator", "2026W33"],
-    ["trailing text", "2026-W33x"],
+    // Shape failures.
+    ["ISO week identifier", "2026-W33"],
+    ["unpadded month", "2026-8-16"],
+    ["unpadded day", "2026-08-6"],
+    ["two-digit year", "26-08-16"],
+    ["slashes", "2026/08/16"],
+    ["trailing time", "2026-08-16T00:00:00Z"],
+    ["trailing text", "2026-08-16x"],
+    ["empty string", ""],
+    // Shape-valid but not real calendar dates.
+    ["February 30", "2026-02-30"],
+    ["month 13", "2026-13-01"],
+    ["month 00", "2026-00-05"],
+    ["day 00", "2026-08-00"],
+    ["Feb 29 in a non-leap year", "2025-02-29"],
+    // Real dates that are not Sundays — the whole point of the constraint.
+    ["a Monday", "2026-08-17"],
+    ["a Saturday", "2026-08-22"],
+    ["a Wednesday", "2026-08-19"],
   ])("rejects %s", (_label, value) => {
-    expect(IsoWeekSchema.safeParse(value).success).toBe(false);
+    expect(WeekStartSchema.safeParse(value).success).toBe(false);
+  });
+
+  it("names the offending weekday when a real date is not a Sunday", () => {
+    const result = WeekStartSchema.safeParse("2026-08-17");
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(
+        "a week must start on a Sunday, but 2026-08-17 is a Mon"
+      );
+    }
+  });
+
+  it("distinguishes an impossible date from a non-Sunday", () => {
+    const impossible = WeekStartSchema.safeParse("2026-02-30");
+    expect(impossible.success).toBe(false);
+    if (!impossible.success) {
+      // Must NOT be reported as a weekday problem: Date.UTC would have
+      // rolled Feb 30 over to Mar 2 (a Monday) and blamed the wrong rule.
+      expect(impossible.error.issues[0]?.message).toBe('"2026-02-30" is not a real calendar date');
+    }
+  });
+
+  it("reports a shape failure without also guessing at the date", () => {
+    const result = WeekStartSchema.safeParse("2026-W33");
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toHaveLength(1);
+      expect(result.error.issues[0]?.message).toContain("YYYY-MM-DD");
+    }
   });
 });
 
@@ -243,8 +306,9 @@ describe("WeekSchema", () => {
     ["empty menu", { ...validWeek, menu: [] }],
     ["bad snack slug", { ...validWeek, snacks: ["Rosemary Almonds"] }],
     ["duplicate snack slugs", { ...validWeek, snacks: ["rosemary-almonds", "rosemary-almonds"] }],
-    ["bad isoWeek", { ...validWeek, isoWeek: "2026-W54" }],
-    ["missing snacks", { isoWeek: "2026-W33", menu: [validMeal] }],
+    ["non-Sunday weekStart", { ...validWeek, weekStart: "2026-08-17" }],
+    ["ISO-week-shaped weekStart", { ...validWeek, weekStart: "2026-W33" }],
+    ["missing snacks", { weekStart: "2026-08-16", menu: [validMeal] }],
     ["empty notes", { ...validWeek, notes: "" }],
   ])("rejects %s", (_label, input) => {
     expect(WeekSchema.safeParse(input).success).toBe(false);

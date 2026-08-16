@@ -1,6 +1,6 @@
 import type { WeekDigestData } from "~/content/load";
 import type { Recipe } from "~/content/schema";
-import { formatIsoWeekRange, isoWeekLabel } from "~/utils/iso-week";
+import { formatWeekRange, weekLabel } from "~/utils/week-dates";
 import { MenuByDay } from "./MenuByDay";
 import { RecipeCard } from "./RecipeCard";
 import { ShoppingListView } from "./ShoppingListView";
@@ -8,7 +8,7 @@ import { StyleBadge } from "./StyleBadge";
 
 /**
  * The full digest for one week — the same layout serves the home page
- * (latest week) and the archive's `/week/$isoWeek` pages: week header,
+ * (latest week) and the archive's `/week/$weekStart` pages: week header,
  * notes, menu by day, snacks, derived shopping list, and every referenced
  * recipe inline as an expandable card.
  */
@@ -33,10 +33,15 @@ export function WeekDigest({ digest }: { digest: WeekDigestData }) {
   return (
     <article className="flex flex-col gap-10">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">{isoWeekLabel(week.isoWeek)}</h1>
-        <p className="text-muted-foreground mt-1">
-          {formatIsoWeekRange(week.isoWeek)} · {week.isoWeek}
-        </p>
+        {/*
+          No raw identifier alongside the range: under ISO weeks the three
+          facts were mutually non-derivable ("Week 33, 2026" / the span /
+          "2026-W33"), so printing the identifier earned its place. A
+          weekStart is a plain date, so the label and the range already state
+          it — a third copy is noise, not information.
+        */}
+        <h1 className="text-3xl font-bold tracking-tight">{weekLabel(week.weekStart)}</h1>
+        <p className="text-muted-foreground mt-1">{formatWeekRange(week.weekStart)}</p>
       </header>
 
       {week.notes !== undefined && (

@@ -24,22 +24,65 @@ built.
    decision (2026-08-15): a weekly manual step is the accepted trade for
    zero generation cost.
 
-## The weekly runbook (settled — ADR-007)
+## The week model (settled — ADR-008)
+
+- A planning week runs **Sunday → Saturday**. The household shops and
+  batch-cooks on the weekend, so Sunday morning is the real boundary.
+- A week is identified by **the calendar date of its starting Sunday**
+  (`YYYY-MM-DD`): the file is `content/weeks/2026-08-16.json` and its
+  `weekStart` field is `"2026-08-16"`. `WeekStartSchema` in
+  `app/content/schema.ts` rejects any date that is not a real Sunday. There
+  is no ISO-week identifier anywhere in the content model.
+- **"Today" resolves in `America/Denver` (Mountain Time)** — in the skill and
+  in the reminder workflow both. The owner shops and cooks on Mountain Time,
+  and a UTC "today" rolls over at 5–6 PM local, which would silently name the
+  wrong week on an evening run.
+- **Never hand-roll week math or a timezone lookup.** There are exactly three
+  sanctioned helpers — use them, and add to them rather than beside them:
+  - `app/utils/week-dates.ts` — pure, UTC-only, safe anywhere including
+    component render: `weekStartDate()`, `weekContains(weekStart, date)` (the
+    span check: is this `YYYY-MM-DD` inside that Sunday→Saturday week?),
+    `formatWeekRange()`, `weekLabel()`.
+  - `app/utils/denver-today.ts` — `denverToday()`, the **only** sanctioned way
+    to ask "what is today in Denver", returning `YYYY-MM-DD`. It is impure and
+    timezone-aware by design. ⚠️ **Server-only: call it in a loader or server
+    function, NEVER during component render.** Resolving the current week
+    during render lets a UTC server and a browser in another timezone pick
+    different weeks — a hydration mismatch, which is exactly the drift
+    `week-dates.ts` is kept pure to avoid. Resolve once on the server, pass
+    the chosen week down as data.
+  - `scripts/plan-reminder/current-week.mjs` — the zero-dependency path for
+    the workflow and for shell use (`--next`, `--from <date> --plus <days>`,
+    which also asserts the `--from` date is a Sunday).
+
+  Resolving Denver in a fourth place is the failure this list exists to
+  prevent; the repo already pins the two implementations together with a sync
+  test.
+
+## The weekly runbook (settled — ADR-007, amended by ADR-008)
 
 The entry point is the committed Claude Code skill
 **`.claude/skills/generate-week/SKILL.md`**, invoked as `/generate-week`
 (`docs/decisions/007-generation-entry-point-committed-skill.md`). The exact
 weekly owner steps:
 
-1. **Update `main`** locally (`git checkout main && git pull`).
+1. **Update `main`** locally (`git checkout main && git pull`) — a fresh
+   weekly run starts here, and the session branches off it at step 5. If you
+   are already on a working branch for this week, stay on it.
 2. **Run `claude`** (a local Claude Code session — existing subscription, no
    API key).
-3. **Invoke `/generate-week [YYYY-Www]`** (default target: next ISO week).
-   The skill reads the golden rules doc, the nutrition guidelines,
+3. **Invoke `/generate-week`** — bare, with no week argument. The skill reads
+   the golden rules doc, the nutrition guidelines,
    `content/preferences.json` (schema: `app/content/preferences.ts`), and
    all existing weeks + recipes for variety (compare recipe slugs, don't
-   repeat last week's mains, ~30 distinct foods), then drafts
-   `content/weeks/<ISO-week>.json` plus any new
+   repeat last week's mains, ~30 distinct foods). It then finds the latest
+   `weekStart` under `content/weeks/` and **asks the owner** (AskUserQuestion)
+   whether to *regenerate that week* or *generate the next one*
+   (`latest + 7 days`); with no weeks on disk yet it offers the current
+   Mountain-Time week (the Sunday on or before today) and the one after it,
+   and if a reminder issue named a week outside those choices (a missed
+   cycle), it offers that week too.
+   With the answer, it drafts `content/weeks/<weekStart>.json` plus any new
    `content/recipes/<slug>.json` files (reusing existing slugs where a dish
    repeats).
 4. **Gates, in order, all green before any PR:** `pnpm validate:content`
@@ -47,11 +90,14 @@ weekly owner steps:
    (forbidden-ingredient linter), `pnpm preflight` — plus **one adversarial
    dietary-safety review round** (fresh subagent, most capable tier;
    `docs/agents/orchestration.md`). Food content never uses `skip-review`.
-5. **Review the diff yourself**, then let the session open the PR: branch
-   `plan-<isoweek>`, title **`feat(plan): <isoweek>`** (e.g.
-   `feat(plan): 2026-W34` — satisfies the pr-title regex in
-   `.github/workflows/pr-conventions.yml`; a bare `plan: …` does not),
-   labels `safe:human` + `review:adversarial-passed` +
+5. **Review the diff yourself**, then let the session open the PR. The
+   session works on whatever branch it is already on (no mandated branch
+   name; it only creates one — e.g. `plan-2026-08-16` — if it started on
+   `main`). Title **`feat(plan): week of <weekStart>`** (e.g.
+   `feat(plan): week of 2026-08-16`, or
+   `feat(plan): regenerate week of 2026-08-16`) — satisfies the pr-title
+   regex in `.github/workflows/pr-conventions.yml`; a bare `plan: …` does
+   not. Labels `safe:human` + `review:adversarial-passed` +
    `status:needs-review` + `skip-changelog`, body with TL;DR, the
    golden-rule check statement, and the `## Adversarial review` verdict.
 6. **Owner merges after CI is green** (the session never merges a
@@ -64,17 +110,32 @@ regenerating every published week that references it.
 
 **Free reminder automation (live, zero-LLM):**
 `.github/workflows/plan-reminder.yml` runs Thursdays 12:00 UTC (and on
-manual dispatch), computes the current UTC ISO week
-(`scripts/plan-reminder/current-iso-week.mjs`), and opens a
-`Plan missing for <week>` issue when `content/weeks/<week>.json` is absent
-(no duplicates — it checks for an existing open issue first). It makes no
-LLM calls and costs nothing. The generation itself is never automated in CI.
+manual dispatch) and checks the **upcoming** week — the Sunday that opens the
+week you are about to shop for. It takes the current Mountain-Time week start
+from `scripts/plan-reminder/current-week.mjs` (a zero-dependency script that
+prints `YYYY-MM-DD` — the Sunday opening the week containing "now" in
+`America/Denver`), adds **7 days**, and opens a
+`Plan missing for <that Sunday's date>` issue when
+`content/weeks/<that date>.json` is absent (no duplicates — it checks for an
+existing open issue first). It makes no LLM calls and costs nothing. The
+generation itself is never automated in CI.
+
+It targets the upcoming week on purpose: under a Sunday→Saturday week, the
+current week is five days gone by Thursday, and the whole point of the
+Thursday nudge is the before-weekend shopping run. **So the reminder and the
+skill's "generate the next week" option name the same Sunday** — that is the
+happy path. The owner gets the Thursday issue, runs `/generate-week`, takes
+the *generate the next week* choice, and the plan lands before the weekend
+shop.
 
 ## Regeneration / editing
 
-- **Full regen:** the owner re-runs the local generation session for that
-  week (with feedback in the prompt, e.g. "no salmon this week —
-  unavailable"). Produces a fresh PR superseding the week.
+- **Full regen:** the owner re-runs the local generation session and picks
+  *regenerate the last generated week* at the skill's prompt (with feedback
+  in the session, e.g. "no salmon this week — unavailable"). It rewrites
+  `content/weeks/<weekStart>.json` in place and produces a fresh PR
+  superseding the week; the PR body must say it is a regeneration and what
+  changed.
 - **Targeted edit:** an agent session (or human) edits the week's content
   directly on a branch — same PR + gates path. Preferred for small fixes
   ("swap Tuesday's dinner").
@@ -95,7 +156,7 @@ LLM calls and costs nothing. The generation itself is never automated in CI.
 
 ## Open decisions (settle by ADR, tracked as issues)
 
-- Week boundary, generation day, and timezone beyond the current defaults
-  (ISO weeks in UTC; Thursday reminder cadence).
+- Generation day and reminder cadence (currently Thursday). The week boundary
+  and timezone are settled — Sunday→Saturday in Mountain Time, ADR-008.
 - How feedback accumulates ("more like this") without turning into a second
   source of truth.

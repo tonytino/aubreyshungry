@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. The storage decision below stands unchanged; only the week **identifier** moved on — ADR-008 (`docs/decisions/008-sunday-week-dated-identifier.md`) replaced `content/weeks/<ISO-week>.json` with `content/weeks/<YYYY-MM-DD>.json`, the date of the week's starting Sunday. Read every `<ISO-week>` below as that date.
 
 ## Context
 

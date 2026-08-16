@@ -15,10 +15,15 @@ ever disagree with the schemas, the schemas win — fix this doc.
 
 ### Week (the unit of publication)
 
-A `Week` is one published weekly plan — the atom of the site. Identified by
-ISO week (e.g. `2026-W32`). A week has:
+A `Week` is one published weekly plan — the atom of the site. A planning week
+runs **Sunday → Saturday** and is identified by **the calendar date of its
+starting Sunday** (e.g. `2026-08-16`, a Sunday). The household shops and
+batch-cooks on the weekend, so Sunday is the real boundary; a plain date also
+reads unambiguously in a filename and a URL. Settled by ADR-008. A week has:
 
-- **isoWeek** — the identifier, `YYYY-Www` (week 01–53); also the filename
+- **weekStart** — the identifier, `YYYY-MM-DD`, and it **must be a Sunday**
+  (`WeekStartSchema` enforces both the calendar validity and the Sunday); also
+  the filename
 - **menu** — the list of `Meal`s planned for the week (non-empty)
 - **snacks** — recipe slugs of snack recipes for the week (may be empty)
 - **notes** — optional context ("salmon was great, repeat"; "prep Sunday")
@@ -35,8 +40,11 @@ There is deliberately **no `status` field** and **no stored shopping list**:
 
 A planned eating occasion within a week's menu. Fields: **recipeSlug**
 (reference to the recipe library), **days** it covers (non-empty, no
-duplicates), and an optional **note**. Its style — meal-prep vs fresh —
-comes from the referenced recipe, not the meal:
+duplicates), and an optional **note**. Day names come from the closed `DAYS`
+enum, which is **Sunday-first** (`sunday` → `saturday`) to match the
+Sunday→Saturday week; that order is also the display order of the
+menu-by-day view. Its style — meal-prep vs fresh — comes from the referenced
+recipe, not the meal:
 
 - `meal-prep` — batch-cooked ahead, portioned for multiple days. The default;
   the plan optimizes for this.
@@ -100,8 +108,9 @@ used inside a grocery store).
 ## Storage (settled — ADR-006)
 
 Content lives in-repo as Zod-validated JSON: one file per published week at
-`content/weeks/<ISO-week>.json` plus a shared recipe library at
-`content/recipes/<slug>.json`, referenced by slug. Git is the history;
+`content/weeks/<weekStart>.json` (e.g. `content/weeks/2026-08-16.json` —
+ADR-006 settled the layout, ADR-008 the identifier) plus a shared recipe
+library at `content/recipes/<slug>.json`, referenced by slug. Git is the history;
 Neon/Drizzle is reserved for later features (search, tagging). Full rationale,
 layout, immutability rules, and the DB migration path:
 `docs/decisions/006-content-storage-files-in-repo.md`.
@@ -110,7 +119,8 @@ layout, immutability rules, and the DB migration path:
 
 ## Open questions (tracked as issues, not settled here)
 
-- Week boundaries and generation day (generate Thu/Fri for weekend shopping?).
+- Generation day and reminder cadence (currently Thursday). The week boundary
+  itself is settled: Sunday→Saturday in Mountain Time (ADR-008).
 - Household serving sizes and portion math.
 - **Batch multiplier (for the #6 aggregation spec):** `Meal` has no
   multiplier — a recipe's quantities are always taken at 1x. If "make a

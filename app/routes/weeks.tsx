@@ -2,7 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { EmptyState } from "~/components/EmptyState";
 import { listWeekSummaries } from "~/content/load";
-import { formatIsoWeekRange, isoWeekLabel } from "~/utils/iso-week";
+import { formatWeekRange, weekLabel } from "~/utils/week-dates";
 
 const getArchive = createServerFn().handler(async () => listWeekSummaries());
 
@@ -31,16 +31,16 @@ function Archive() {
       <p className="text-muted-foreground mt-1">Every published week, newest first.</p>
       <ul className="mt-6 divide-y divide-zinc-200">
         {weeks.map((week) => (
-          <li key={week.isoWeek}>
+          <li key={week.weekStart}>
             <Link
-              to="/week/$isoWeek"
-              params={{ isoWeek: week.isoWeek }}
+              to="/week/$weekStart"
+              params={{ weekStart: week.weekStart }}
               className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-4 hover:bg-zinc-50"
             >
               <span>
-                <span className="font-semibold">{isoWeekLabel(week.isoWeek)}</span>{" "}
+                <span className="font-semibold">{weekLabel(week.weekStart)}</span>{" "}
                 <span className="text-muted-foreground text-sm">
-                  {formatIsoWeekRange(week.isoWeek)}
+                  {formatWeekRange(week.weekStart)}
                 </span>
               </span>
               <span className="text-muted-foreground text-sm">
