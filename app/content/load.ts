@@ -32,7 +32,7 @@ export type WeekDigestData = {
 
 /** One archive-index row. */
 export type WeekSummary = {
-  isoWeek: string;
+  weekStart: string;
   mealCount: number;
   snackCount: number;
 };
@@ -42,7 +42,10 @@ function defaultContentDir(): string {
 }
 
 export type LoadedContent = {
-  /** Renderable weeks, newest first (isoWeek is zero-padded, so string order is date order). */
+  /**
+   * Renderable weeks, newest first. `weekStart` is zero-padded `YYYY-MM-DD`,
+   * so a plain string sort is still date order — no parsing needed.
+   */
   weeks: Week[];
   recipesBySlug: Record<string, Recipe>;
 };
@@ -60,7 +63,7 @@ export function loadContent(dir: string = defaultContentDir()): LoadedContent {
   }
   const weeks = result.weeks
     .filter((week) => referencedSlugs(week).every((slug) => recipesBySlug[slug] !== undefined))
-    .sort((a, b) => (a.isoWeek < b.isoWeek ? 1 : a.isoWeek > b.isoWeek ? -1 : 0));
+    .sort((a, b) => (a.weekStart < b.weekStart ? 1 : a.weekStart > b.weekStart ? -1 : 0));
   return { weeks, recipesBySlug };
 }
 
@@ -88,18 +91,18 @@ export function getLatestWeekDigest(dir: string = defaultContentDir()): WeekDige
 
 /** A specific week's digest, or `null` when that week isn't published. */
 export function getWeekDigest(
-  isoWeek: string,
+  weekStart: string,
   dir: string = defaultContentDir()
 ): WeekDigestData | null {
   const { weeks, recipesBySlug } = loadContent(dir);
-  const week = weeks.find((candidate) => candidate.isoWeek === isoWeek);
+  const week = weeks.find((candidate) => candidate.weekStart === weekStart);
   return week === undefined ? null : toDigest(week, recipesBySlug);
 }
 
 /** Archive index rows, newest first. */
 export function listWeekSummaries(dir: string = defaultContentDir()): WeekSummary[] {
   return loadContent(dir).weeks.map((week) => ({
-    isoWeek: week.isoWeek,
+    weekStart: week.weekStart,
     mealCount: week.menu.length,
     snackCount: week.snacks.length,
   }));

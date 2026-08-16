@@ -54,7 +54,7 @@ const roastedAlmonds: Recipe = {
 
 const digest: WeekDigestData = {
   week: {
-    isoWeek: "2026-W33",
+    weekStart: "2026-08-16",
     menu: [
       { recipeSlug: "salmon-quinoa-bowl", days: ["monday", "wednesday"] },
       { recipeSlug: "spinach-berry-salad", days: ["tuesday"] },
@@ -78,8 +78,10 @@ const digest: WeekDigestData = {
 describe("WeekDigest", () => {
   it("renders the week title and human date range", () => {
     render(<WeekDigest digest={digest} />);
-    expect(screen.getByRole("heading", { level: 1, name: "Week 33, 2026" })).toBeInTheDocument();
-    expect(screen.getByText("Aug 10–16, 2026 · 2026-W33")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Week of Aug 16, 2026" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Aug 16–22, 2026 · 2026-08-16")).toBeInTheDocument();
   });
 
   it("renders the week notes", () => {

@@ -1,9 +1,12 @@
 name: Plan reminder
 
 # Zero-LLM reminder (docs/agents/generation.md): every Thursday, check whether
-# the CURRENT ISO week's plan exists at content/weeks/<week>.json and open a
-# reminder issue when it is missing. This never generates content and never
-# calls an LLM — generation is owner-run locally via /generate-week
+# the CURRENT week's plan exists at content/weeks/<weekStart>.json and open a
+# reminder issue when it is missing. A week runs Sunday→Saturday and is named
+# by its starting Sunday's date (YYYY-MM-DD), resolved in America/Denver — the
+# week rolls over at Denver midnight, not UTC midnight. This never generates
+# content and never calls an LLM — generation is owner-run locally via
+# /generate-week
 # (docs/decisions/007-generation-entry-point-committed-skill.md). Free tier
 # only: GITHUB_TOKEN, no secrets.
 on:
@@ -30,19 +33,19 @@ jobs:
       # WEEK is computed on its own line so a script failure fails the step
       # (command substitution inside `echo` would swallow the exit status and
       # emit an empty week); the shape guard belt-and-braces the same risk.
-      - name: Compute the current UTC ISO week
+      - name: Compute the current week (Mountain Time)
         id: week
         run: |
-          WEEK=$(node scripts/plan-reminder/current-iso-week.mjs)
+          WEEK=$(node scripts/plan-reminder/current-week.mjs)
           case "$WEEK" in
-            [0-9][0-9][0-9][0-9]-W[0-9][0-9]) ;;
-            *) echo "::error::current-iso-week.mjs printed '$WEEK', not YYYY-Www"; exit 1 ;;
+            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+            *) echo "::error::current-week.mjs printed '$WEEK', not YYYY-MM-DD"; exit 1 ;;
           esac
           echo "week=$WEEK" >> "$GITHUB_OUTPUT"
 
-      # The week identifier comes from our own script (shape YYYY-Www), passed
-      # via env — never inline ${{ }} into script bodies elsewhere in this
-      # repo's workflows; kept consistent here.
+      # The week identifier comes from our own script (shape YYYY-MM-DD),
+      # passed via env — never inline ${{ }} into script bodies elsewhere in
+      # this repo's workflows; kept consistent here.
       - name: Open a reminder issue if the week's plan is missing
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -65,5 +68,5 @@ jobs:
             --title "$TITLE" \
             --label "type:chore" \
             --label "status:ready" \
-            --body "$(printf 'No plan file exists at content/weeks/%s.json for the current ISO week.\n\nRun the owner-local generation session with the explicit week argument: /generate-week %s (the skill defaults to NEXT week; this reminder is about the CURRENT one) — see docs/agents/generation.md. This issue was opened automatically by .github/workflows/plan-reminder.yml (zero-LLM reminder).' "$WEEK" "$WEEK")"
+            --body "$(printf 'No plan file exists at content/weeks/%s.json for the current week (Sunday %s through the following Saturday).\n\nRun the owner-local generation session: /generate-week — it takes no week argument; it offers the candidate weeks and you pick one. Pick %s to cover this reminder (the skill leads with NEXT week; this reminder is about the CURRENT one) — see docs/agents/generation.md. This issue was opened automatically by .github/workflows/plan-reminder.yml (zero-LLM reminder).' "$WEEK" "$WEEK" "$WEEK")"
           echo "✓ Opened reminder issue: $TITLE"

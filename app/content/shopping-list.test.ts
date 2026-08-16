@@ -47,7 +47,7 @@ function meal(recipeSlug: string, days: Meal["days"] = ["monday"]): Meal {
 }
 
 function week(menu: Week["menu"], snacks: string[] = []): Week {
-  return { isoWeek: "2026-W33", menu, snacks };
+  return { weekStart: "2026-08-16", menu, snacks };
 }
 
 function byIndex(recipes: Recipe[]): Record<string, Recipe> {

@@ -4,14 +4,16 @@ import { StyleBadge } from "./StyleBadge";
 
 type Day = (typeof DAYS)[number];
 
+// Sunday-first, mirroring DAYS — the render order comes from DAYS itself
+// (below), so this map only supplies display text.
 const DAY_LABELS: Record<Day, string> = {
+  sunday: "Sunday",
   monday: "Monday",
   tuesday: "Tuesday",
   wednesday: "Wednesday",
   thursday: "Thursday",
   friday: "Friday",
   saturday: "Saturday",
-  sunday: "Sunday",
 };
 
 type MenuByDayProps = {
@@ -22,9 +24,10 @@ type MenuByDayProps = {
 /**
  * The week's menu grouped by day (a multi-day meal-prep batch appears under
  * each day it covers — the question this view answers is "what do we eat
- * today?"). Days with nothing planned are omitted. Each entry links to its
- * inline recipe card and carries the recipe's style badge so meal-prep vs
- * fresh is visible at a glance.
+ * today?"). Days render in `DAYS` order, i.e. Sunday→Saturday, matching the
+ * week the plan names. Days with nothing planned are omitted. Each entry
+ * links to its inline recipe card and carries the recipe's style badge so
+ * meal-prep vs fresh is visible at a glance.
  */
 export function MenuByDay({ menu, recipesBySlug }: MenuByDayProps) {
   const plannedDays = DAYS.filter((day) => menu.some((meal) => meal.days.includes(day)));

@@ -78,9 +78,9 @@ const almondSnackRecipe = {
   steps: ["Roast the almonds at 325F for 10 minutes, stirring once."],
 };
 
-function weekDoc(isoWeek: string, overrides: Record<string, unknown> = {}): string {
+function weekDoc(weekStart: string, overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
-    isoWeek,
+    weekStart,
     menu: [
       { recipeSlug: "sheet-pan-salmon-quinoa", days: ["monday", "wednesday"] },
       { recipeSlug: "spinach-berry-salad", days: ["tuesday"] },
@@ -96,8 +96,8 @@ function fullContentDir(): string {
     "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
     "recipes/spinach-berry-salad.json": JSON.stringify(spinachSaladRecipe),
     "recipes/roasted-almonds.json": JSON.stringify(almondSnackRecipe),
-    "weeks/2026-W32.json": weekDoc("2026-W32"),
-    "weeks/2026-W33.json": weekDoc("2026-W33"),
+    "weeks/2026-08-09.json": weekDoc("2026-08-09"),
+    "weeks/2026-08-16.json": weekDoc("2026-08-16"),
   });
 }
 
@@ -111,25 +111,46 @@ describe("loadContent", () => {
 
   it("sorts weeks newest first", () => {
     const { weeks } = loadContent(fullContentDir());
-    expect(weeks.map((week) => week.isoWeek)).toEqual(["2026-W33", "2026-W32"]);
+    expect(weeks.map((week) => week.weekStart)).toEqual(["2026-08-16", "2026-08-09"]);
+  });
+
+  it("sorts by date across month and year boundaries (zero-padded string sort)", () => {
+    // The sort compares weekStart as plain strings. That is only correct
+    // because YYYY-MM-DD is zero-padded and big-endian — this pins it, so a
+    // future identifier format can't quietly break archive ordering.
+    const dir = makeContentDir({
+      "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
+      "recipes/spinach-berry-salad.json": JSON.stringify(spinachSaladRecipe),
+      "recipes/roasted-almonds.json": JSON.stringify(almondSnackRecipe),
+      "weeks/2025-12-28.json": weekDoc("2025-12-28"),
+      "weeks/2026-01-04.json": weekDoc("2026-01-04"),
+      "weeks/2026-09-06.json": weekDoc("2026-09-06"),
+      "weeks/2026-08-30.json": weekDoc("2026-08-30"),
+    });
+    expect(loadContent(dir).weeks.map((week) => week.weekStart)).toEqual([
+      "2026-09-06",
+      "2026-08-30",
+      "2026-01-04",
+      "2025-12-28",
+    ]);
   });
 
   it("omits weeks with dangling recipe references instead of crashing", () => {
     const dir = makeContentDir({
       "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
-      "weeks/2026-W32.json": JSON.stringify({
-        isoWeek: "2026-W32",
+      "weeks/2026-08-09.json": JSON.stringify({
+        weekStart: "2026-08-09",
         menu: [{ recipeSlug: "sheet-pan-salmon-quinoa", days: ["monday"] }],
         snacks: [],
       }),
-      "weeks/2026-W33.json": JSON.stringify({
-        isoWeek: "2026-W33",
+      "weeks/2026-08-16.json": JSON.stringify({
+        weekStart: "2026-08-16",
         menu: [{ recipeSlug: "missing-recipe", days: ["monday"] }],
         snacks: [],
       }),
     });
     const { weeks } = loadContent(dir);
-    expect(weeks.map((week) => week.isoWeek)).toEqual(["2026-W32"]);
+    expect(weeks.map((week) => week.weekStart)).toEqual(["2026-08-09"]);
   });
 });
 
@@ -142,7 +163,7 @@ describe("getLatestWeekDigest", () => {
     const digest = getLatestWeekDigest(fullContentDir());
     expect(digest).not.toBeNull();
     if (digest === null) return;
-    expect(digest.week.isoWeek).toBe("2026-W33");
+    expect(digest.week.weekStart).toBe("2026-08-16");
     expect(Object.keys(digest.recipesBySlug).sort()).toEqual([
       "roasted-almonds",
       "sheet-pan-salmon-quinoa",
@@ -161,12 +182,12 @@ describe("getLatestWeekDigest", () => {
 
 describe("getWeekDigest", () => {
   it("returns the requested week", () => {
-    const digest = getWeekDigest("2026-W32", fullContentDir());
-    expect(digest?.week.isoWeek).toBe("2026-W32");
+    const digest = getWeekDigest("2026-08-09", fullContentDir());
+    expect(digest?.week.weekStart).toBe("2026-08-09");
   });
 
   it("returns null for an unpublished week", () => {
-    expect(getWeekDigest("2026-W40", fullContentDir())).toBeNull();
+    expect(getWeekDigest("2026-10-04", fullContentDir())).toBeNull();
   });
 });
 
@@ -177,8 +198,8 @@ describe("listWeekSummaries", () => {
 
   it("returns newest-first rows with counts", () => {
     expect(listWeekSummaries(fullContentDir())).toEqual([
-      { isoWeek: "2026-W33", mealCount: 2, snackCount: 1 },
-      { isoWeek: "2026-W32", mealCount: 2, snackCount: 1 },
+      { weekStart: "2026-08-16", mealCount: 2, snackCount: 1 },
+      { weekStart: "2026-08-09", mealCount: 2, snackCount: 1 },
     ]);
   });
 });

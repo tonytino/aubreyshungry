@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. Amended by ADR-008 (`docs/decisions/008-sunday-week-dated-identifier.md`), which drops the `plan-<isoweek>` branch mandate and replaces the `[YYYY-Www]` invocation parameter with an interactive prompt; weeks are now identified by their starting Sunday's date (`content/weeks/<YYYY-MM-DD>.json`). The record below stands as written — read it with those two amendments applied.
 
 ## Context
 

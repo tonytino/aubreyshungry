@@ -5,10 +5,16 @@
  * This file is the source of truth for content shapes (see
  * `docs/agents/domain.md` and ADR-006). Every content boundary — generation
  * output, CI validation, and the site build — validates against these
- * schemas. Content lives in-repo as JSON: `content/weeks/<ISO-week>.json`
+ * schemas. Content lives in-repo as JSON: `content/weeks/<weekStart>.json`
  * and `content/recipes/<slug>.json`.
  *
  * Design decisions recorded here so they aren't re-litigated:
+ *
+ * - **A week runs Sunday→Saturday and is identified by its starting
+ *   Sunday's date (`weekStart`, `YYYY-MM-DD`).** The household shops and
+ *   batch-cooks on the weekend, so the plan's natural boundary is Sunday
+ *   morning, not the ISO Monday. A plain calendar date also reads
+ *   unambiguously in a URL and a filename, which `2026-W34` does not.
  *
  * - **Units are a closed enum (plus `""` for countable items), not free
  *   text.** The shopping list (issue #6) merges ingredients by exact
@@ -74,15 +80,20 @@ export const STORE_SECTIONS = [
 
 export const StoreSectionSchema = z.enum(STORE_SECTIONS);
 
-/** Days a meal can cover. */
+/**
+ * Days a meal can cover, in week order. Sunday-first because a planning
+ * week runs Sunday→Saturday (see the `weekStart` note above) — this array's
+ * order IS the display order for the menu-by-day view, so it must match the
+ * week the identifier names or Sunday's meal-prep batch would render last.
+ */
 export const DAYS = [
+  "sunday",
   "monday",
   "tuesday",
   "wednesday",
   "thursday",
   "friday",
   "saturday",
-  "sunday",
 ] as const;
 
 export const DaySchema = z.enum(DAYS);
@@ -179,45 +190,78 @@ export const MealSchema = z.object({
 
 export type Meal = z.infer<typeof MealSchema>;
 
-/** `2026-W03` — ISO 8601 week identifier. Week number range checked by refinement. */
-const ISO_WEEK = /^\d{4}-W\d{2}$/;
+/** `2026-08-16` — the calendar date of a week's starting Sunday. */
+const WEEK_START = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * ISO 8601 long-year rule: a year has 53 weeks only when Jan 1 falls on a
- * Thursday, or on a Wednesday in a leap year; every other year has 52.
- * Enforced because the isoWeek is the file identity — an impossible week
- * (e.g. 2025-W53) would otherwise live in the archive forever.
+ * Reject dates the regex accepts but the calendar doesn't (2026-02-30,
+ * 2026-13-01). `Date.UTC` silently rolls those over — Feb 30 becomes Mar 2 —
+ * so round-tripping the parts back out is the only reliable check.
+ * Returns the UTC-midnight Date when the input is a real date, else null.
  */
-function isLongIsoYear(year: number): boolean {
-  const jan1Weekday = new Date(Date.UTC(year, 0, 1)).getUTCDay(); // 3 = Wed, 4 = Thu
-  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-  return jan1Weekday === 4 || (isLeap && jan1Weekday === 3);
+function realUtcDate(year: number, month: number, day: number): Date | null {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const roundTripped =
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  return roundTripped ? date : null;
 }
 
-export const IsoWeekSchema = z
+/**
+ * Weekday abbreviation ("Sun", "Wed", …) for a UTC date. `toUTCString()` is
+ * spec-fixed to English abbreviations in a fixed layout, so this stays
+ * deterministic across locales and runtimes — unlike `toLocaleDateString`,
+ * which would make a validation message vary by machine.
+ */
+function utcWeekdayName(date: Date): string {
+  return date.toUTCString().slice(0, 3);
+}
+
+/**
+ * A week identifier: the `YYYY-MM-DD` date of the Sunday that starts the
+ * Sunday→Saturday planning window.
+ *
+ * The Sunday constraint is enforced here rather than left to convention
+ * because this string IS the file identity per ADR-006
+ * (`content/weeks/<weekStart>.json`) and the archive URL. A week filed under
+ * a Wednesday would misname its own window forever: the digest would render
+ * a Sun–Sat span that doesn't start on the named day, and — since published
+ * means merged to main — renaming it later rewrites a public URL. Catching
+ * it at the validation boundary is the only cheap moment.
+ *
+ * Each failure gets its own message so a generation run knows which of the
+ * three rules it broke.
+ */
+export const WeekStartSchema = z
   .string()
-  .regex(ISO_WEEK, "must match YYYY-Www (e.g. 2026-W03)")
+  .regex(WEEK_START, "must be a date in YYYY-MM-DD form (e.g. 2026-08-16)")
   .superRefine((value, ctx) => {
+    // Zod still runs superRefine after a failed `.regex()`, and slicing a
+    // non-date ("2026-W33") yields NaN parts that would add a bogus second
+    // "not a real calendar date" issue on top of the real shape error. Bail
+    // out so each input reports exactly the one rule it actually broke.
+    if (!WEEK_START.test(value)) return;
     const year = Number(value.slice(0, 4));
-    const week = Number(value.slice(-2));
-    if (week < 1 || week > 53) {
+    const month = Number(value.slice(5, 7));
+    const day = Number(value.slice(8, 10));
+    const date = realUtcDate(year, month, day);
+    if (date === null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "ISO week number must be between 01 and 53",
+        message: `"${value}" is not a real calendar date`,
       });
       return;
     }
-    if (week === 53 && !isLongIsoYear(year)) {
+    if (date.getUTCDay() !== 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `${year} is not an ISO long year — it has 52 weeks, so W53 does not exist`,
+        message: `a week must start on a Sunday, but ${value} is a ${utcWeekdayName(date)}`,
       });
     }
   });
 
 /**
  * One published weekly plan — the unit of publication, stored at
- * `content/weeks/<isoWeek>.json`. Note there is no `status` and no stored
+ * `content/weeks/<weekStart>.json`. Note there is no `status` and no stored
  * shopping list: published = merged to main (ADR-006), and the shopping
  * list is always derived from the referenced recipes at build time.
  *
@@ -235,7 +279,8 @@ export const IsoWeekSchema = z
  *   in the aggregation.
  */
 export const WeekSchema = z.object({
-  isoWeek: IsoWeekSchema,
+  /** The starting Sunday's date — this week's identity and its filename. */
+  weekStart: WeekStartSchema,
   menu: z.array(MealSchema).nonempty("a week needs at least one meal"),
   /** Snack recipe references (`content/recipes/<slug>.json`). May be empty. */
   snacks: z.array(RecipeSlugSchema).refine((snacks) => new Set(snacks).size === snacks.length, {

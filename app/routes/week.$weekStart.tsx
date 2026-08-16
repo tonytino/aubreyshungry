@@ -3,19 +3,21 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { WeekDigest } from "~/components/WeekDigest";
 import { getWeekDigest } from "~/content/load";
-import { IsoWeekSchema } from "~/content/schema";
+import { WeekStartSchema } from "~/content/schema";
 
 const getDigestForWeek = createServerFn()
-  .validator(z.object({ isoWeek: IsoWeekSchema }))
-  .handler(async ({ data }) => getWeekDigest(data.isoWeek));
+  .validator(z.object({ weekStart: WeekStartSchema }))
+  .handler(async ({ data }) => getWeekDigest(data.weekStart));
 
-export const Route = createFileRoute("/week/$isoWeek")({
+export const Route = createFileRoute("/week/$weekStart")({
   loader: async ({ params }) => {
-    // A malformed identifier is a 404, not a validation crash.
-    if (!IsoWeekSchema.safeParse(params.isoWeek).success) {
+    // A malformed identifier is a 404, not a validation crash. This also
+    // keeps the non-Sunday case off the server function and out of
+    // `weekStartDate`, both of which reject it by throwing.
+    if (!WeekStartSchema.safeParse(params.weekStart).success) {
       throw notFound();
     }
-    const digest = await getDigestForWeek({ data: { isoWeek: params.isoWeek } });
+    const digest = await getDigestForWeek({ data: { weekStart: params.weekStart } });
     if (digest === null) {
       throw notFound();
     }
