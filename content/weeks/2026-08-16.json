@@ -1,0 +1,36 @@
+{
+  "weekStart": "2026-08-16",
+  "menu": [
+    {
+      "recipeSlug": "salmon-quinoa-power-bowls",
+      "days": ["sunday", "tuesday"],
+      "note": "Roast the salmon and cook the quinoa Sunday; Tuesday is a reheat."
+    },
+    {
+      "recipeSlug": "ginger-lentil-sweet-potato-stew",
+      "days": ["monday", "wednesday"],
+      "note": "Also made Sunday. It thickens overnight, so loosen it with water when reheating."
+    },
+    {
+      "recipeSlug": "sardine-white-bean-salad",
+      "days": ["thursday"],
+      "note": "No cooking — assembled from the pantry when the batch food runs out."
+    },
+    {
+      "recipeSlug": "turmeric-chickpea-cauliflower-skillet",
+      "days": ["friday"],
+      "note": "One pan, about 25 minutes."
+    },
+    {
+      "recipeSlug": "seared-trout-with-lemon-greens",
+      "days": ["saturday"],
+      "note": "Cooked fresh; buy the trout Saturday if the fish counter allows."
+    }
+  ],
+  "snacks": [
+    "blueberry-chia-yogurt-cups",
+    "turmeric-roasted-chickpeas",
+    "sesame-herb-hummus-with-crudites"
+  ],
+  "notes": "Sunday is the shop-and-batch-cook day: the salmon bowls and the lentil stew are both made then and cover four days. Thursday through Saturday are cooked fresh. Three fatty-fish meals clear the two-per-week floor, and every meal leans on turmeric, ginger, or garlic in cooking amounts. No tree nuts appear anywhere this week — seeds and sesame paste do that job instead."
+}

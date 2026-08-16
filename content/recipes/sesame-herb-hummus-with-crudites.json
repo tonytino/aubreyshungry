@@ -1,0 +1,29 @@
+{
+  "slug": "sesame-herb-hummus-with-crudites",
+  "title": "Sesame Herb Hummus with Crudites",
+  "servings": 4,
+  "prepMinutes": 15,
+  "cookMinutes": 0,
+  "style": "snack",
+  "ingredients": [
+    { "name": "chickpeas", "quantity": 2, "unit": "can", "section": "pantry" },
+    { "name": "tahini (sesame paste)", "quantity": 0.33, "unit": "cup", "section": "pantry" },
+    { "name": "flat-leaf parsley", "quantity": 0.5, "unit": "bunch", "section": "produce" },
+    { "name": "garlic", "quantity": 2, "unit": "clove", "section": "produce" },
+    { "name": "lemon", "quantity": 1, "unit": "piece", "section": "produce" },
+    { "name": "carrot", "quantity": 4, "unit": "piece", "section": "produce" },
+    { "name": "cucumber", "quantity": 2, "unit": "piece", "section": "produce" },
+    { "name": "red bell pepper", "quantity": 1, "unit": "piece", "section": "produce" },
+    { "name": "extra-virgin olive oil", "quantity": 3, "unit": "tbsp", "section": "pantry" },
+    { "name": "ground cumin", "quantity": 0.5, "unit": "tsp", "section": "spices" }
+  ],
+  "steps": [
+    "Blend the drained chickpeas, tahini, garlic, lemon juice, cumin, and olive oil until smooth, loosening with cold water.",
+    "Pulse the parsley through at the end, so the dip stays flecked rather than green.",
+    "Cut the carrots, cucumber, and bell pepper into sticks and serve alongside."
+  ],
+  "goldenRuleCallouts": [
+    "Sesame paste gives this its body, so it needs no tree-nut cream of any kind.",
+    "Raw vegetables carry the dip, which keeps a processed cracker out of the snack rotation."
+  ]
+}

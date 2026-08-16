@@ -1,0 +1,30 @@
+{
+  "slug": "seared-trout-with-lemon-greens",
+  "title": "Seared Trout with Lemon Greens",
+  "servings": 4,
+  "prepMinutes": 10,
+  "cookMinutes": 15,
+  "style": "fresh",
+  "ingredients": [
+    { "name": "rainbow trout fillet", "quantity": 1.5, "unit": "lb", "section": "protein" },
+    { "name": "arugula", "quantity": 5, "unit": "oz", "section": "produce" },
+    { "name": "kale", "quantity": 4, "unit": "oz", "section": "produce" },
+    { "name": "garlic", "quantity": 3, "unit": "clove", "section": "produce" },
+    { "name": "fresh ginger", "quantity": 1, "unit": "tbsp", "section": "produce" },
+    { "name": "lemon", "quantity": 2, "unit": "piece", "section": "produce" },
+    { "name": "pumpkin seeds", "quantity": 0.25, "unit": "cup", "section": "pantry" },
+    { "name": "extra-virgin olive oil", "quantity": 3, "unit": "tbsp", "section": "pantry" },
+    { "name": "black pepper", "quantity": 0.5, "unit": "tsp", "section": "spices" }
+  ],
+  "steps": [
+    "Pat the trout dry and season it with black pepper.",
+    "Sear the fillets skin-side down in 1 tablespoon olive oil for 4 minutes, then flip and cook 2 minutes more.",
+    "Lift the fish out. In the same pan, cook the garlic and ginger for 30 seconds.",
+    "Add the stripped kale and cook 2 minutes, then fold the arugula through until it just wilts.",
+    "Return the trout to the pan, add lemon juice and the remaining olive oil, and scatter the pumpkin seeds over."
+  ],
+  "goldenRuleCallouts": [
+    "A third fatty-fish meal, clearing the two-per-week floor with room to spare.",
+    "Toasted seeds finish the plate, so no tree nuts are needed for crunch."
+  ]
+}
