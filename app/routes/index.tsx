@@ -1,9 +1,9 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { EmptyState } from "~/components/EmptyState";
+import { NewerWeekLink } from "~/components/NewerWeekLink";
 import { WeekDigest } from "~/components/WeekDigest";
 import { getHomeDigest } from "~/content/load";
-import { formatWeekRange } from "~/utils/week-dates";
 
 // One-shot route data with no user input → a plain server function in the
 // loader (docs/agents/api.md). Content is read from `content/` on the
@@ -33,23 +33,8 @@ function Home() {
         />
       ) : (
         <>
-          {/*
-            Shown only when a newer plan exists. "Next" means the next week
-            published after the one on screen — usually literally next week,
-            and still the right thing to point at after a skipped week.
-            formatWeekRange is pure, so rendering it here is hydration-safe.
-          */}
-          {home.newerWeekStart !== null && (
-            <p className="mb-6 text-sm print:hidden">
-              <Link
-                to="/week/$weekStart"
-                params={{ weekStart: home.newerWeekStart }}
-                className="underline underline-offset-4"
-              >
-                Next week: {formatWeekRange(home.newerWeekStart)}
-              </Link>
-            </p>
-          )}
+          {/* Shown only when a newer published week exists. */}
+          {home.newerWeekStart !== null && <NewerWeekLink weekStart={home.newerWeekStart} />}
           <WeekDigest digest={home.digest} />
         </>
       )}
