@@ -158,10 +158,16 @@ function parseWeekStart(value) {
  * @returns {string}
  */
 export function weekStartPlus(weekStart, days) {
-  if (!Number.isInteger(days)) {
+  // isSafeInteger, not isInteger: 1e21 is an "integer" to JS but stepping by
+  // it yields an Invalid Date, which would format as "NaN-NaN-NaN".
+  if (!Number.isSafeInteger(days)) {
     throw new Error(`weekStartPlus expects a whole number of days, got "${days}"`);
   }
-  return formatUtcDate(new Date(parseWeekStart(weekStart).getTime() + days * MS_PER_DAY));
+  const result = new Date(parseWeekStart(weekStart).getTime() + days * MS_PER_DAY);
+  if (Number.isNaN(result.getTime())) {
+    throw new Error(`stepping ${weekStart} by ${days} days leaves the representable date range`);
+  }
+  return formatUtcDate(result);
 }
 
 /**
@@ -196,13 +202,23 @@ function resolveCli(args) {
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     if (arg === "--next") {
+      // Repeats are a mistake, not an intent — see the note above.
+      if (next) {
+        throw new Error(`--next given more than once\n${USAGE}`);
+      }
       next = true;
       continue;
     }
     if (arg === "--from" || arg === "--plus") {
+      // Taking the LAST occurrence of a repeated flag would silently
+      // discard the first — `--from a --from b` must not quietly answer for
+      // b. Reject instead.
+      if ((arg === "--from" ? from : plus) !== undefined) {
+        throw new Error(`${arg} given more than once\n${USAGE}`);
+      }
       const value = args[i + 1];
-      // A following flag means the value was omitted. Bare "-7" is a legal
-      // --plus value, so only "--" prefixes disqualify it.
+      // A missing value, or a following flag, means the value was omitted.
+      // Bare "-7" is a legal --plus value, so only "--" prefixes disqualify.
       if (value === undefined || value.startsWith("--")) {
         throw new Error(`${arg} requires a value\n${USAGE}`);
       }
@@ -223,11 +239,27 @@ function resolveCli(args) {
   if (next) {
     throw new Error(`--next and --from are mutually exclusive\n${USAGE}`);
   }
+
   // `--plus` defaults to 0 so `--from <date>` alone is a pure Sunday
   // assertion that echoes the date back.
-  const days = plus === undefined ? 0 : Number(plus);
-  if (!Number.isInteger(days)) {
-    throw new Error(`--plus must be a whole number of days, got "${plus}"\n${USAGE}`);
+  let days = 0;
+  if (plus !== undefined) {
+    // Validate the RAW STRING before Number(), which is far too permissive
+    // to trust here: it reads "" and "  " as 0, "0x7" as 7, "1e3" as 1000
+    // and "7.0" as 7. The "" case is the dangerous one — an unset shell
+    // variable in `--plus "$OFFSET"` would land on the documented
+    // `--plus 0` behaviour and report that next week IS this week. That is
+    // exactly the quietly-wrong answer this whole mode exists to prevent,
+    // so every one of these is a hard failure.
+    if (!/^-?\d+$/.test(plus)) {
+      throw new Error(
+        `--plus must be a whole number of days like 7 or -7, got "${plus}"\n${USAGE}`
+      );
+    }
+    days = Number(plus);
+    if (!Number.isSafeInteger(days)) {
+      throw new Error(`--plus is out of range: "${plus}"\n${USAGE}`);
+    }
   }
   return weekStartPlus(from, days);
 }

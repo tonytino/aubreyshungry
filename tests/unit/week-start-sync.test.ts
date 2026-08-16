@@ -333,16 +333,55 @@ describe("plan-reminder weekStart stays in sync with app/utils/week-dates", () =
         [["--form", "2026-08-16"], 'unknown argument "--form"'],
         [["--from"], "--from requires a value"],
         [["--plus", "7"], "--plus requires --from"],
-        [["--from", "2026-08-16", "--plus", "1.5"], "--plus must be a whole number of days"],
-        [["--from", "2026-08-16", "--plus", "soon"], "--plus must be a whole number of days"],
         [["--next", "--from", "2026-08-16"], "--next and --from are mutually exclusive"],
+        // Missing values — a trailing flag has nothing to consume.
+        [["--from", "2026-08-16", "--plus"], "--plus requires a value"],
+        [["--from", "--plus", "7"], "--from requires a value"],
+        // Values Number() would silently accept. The empty string is the
+        // dangerous one: `--plus "$OFFSET"` with OFFSET unset would
+        // otherwise become the documented `--plus 0` and report that next
+        // week is this week.
+        [["--from", "2026-08-16", "--plus", ""], "--plus must be a whole number of days"],
+        [["--from", "2026-08-16", "--plus", "   "], "--plus must be a whole number of days"],
+        [["--from", "2026-08-16", "--plus", "0x7"], "--plus must be a whole number of days"],
+        [["--from", "2026-08-16", "--plus", "1e3"], "--plus must be a whole number of days"],
+        [["--from", "2026-08-16", "--plus", "7.0"], "--plus must be a whole number of days"],
+        [["--from", "2026-08-16", "--plus", "1.5"], "--plus must be a whole number of days"],
+        [["--from", "2026-08-16", "--plus", "NaN"], "--plus must be a whole number of days"],
+        [["--from", "2026-08-16", "--plus", "+7"], "--plus must be a whole number of days"],
+        [["--from", "2026-08-16", "--plus", "soon"], "--plus must be a whole number of days"],
+        [["--from", "2026-08-16", "--plus", "9".repeat(20)], "--plus is out of range"],
+        // Repeated flags: taking the last occurrence would silently discard
+        // the first and answer a question nobody asked.
+        [["--from", "2026-08-16", "--from", "2026-08-23"], "--from given more than once"],
+        [["--from", "2026-08-16", "--plus", "1", "--plus", "2"], "--plus given more than once"],
+        [["--next", "--next"], "--next given more than once"],
       ];
       for (const [args, expected] of cases) {
+        const label = args.map((arg) => JSON.stringify(arg)).join(" ");
         const result = runCli(...args);
-        expect(result.status, args.join(" ")).toBe(1);
-        expect(result.stderr, args.join(" ")).toContain(expected);
-        expect(result.stdout.trim(), args.join(" ")).toBe("");
+        expect(result.status, label).toBe(1);
+        expect(result.stderr, label).toContain(expected);
+        // Nothing on stdout: a caller doing `WEEK=$(...)` must get an empty
+        // string plus a failing status, never a plausible-looking date.
+        expect(result.stdout.trim(), label).toBe("");
+        expect(result.stderr, label).toContain("usage: current-week.mjs");
       }
+    });
+
+    it("still accepts an explicit --plus 0 (the documented Sunday assertion)", () => {
+      // The empty-string rejection must not take the legitimate zero with
+      // it — `--plus 0` and `--plus ""` have to end up on opposite sides.
+      const zero = runCli("--from", "2026-08-16", "--plus", "0");
+      expect(zero.status).toBe(0);
+      expect(zero.stdout).toBe("2026-08-16\n");
+      expect(runCli("--from", "2026-08-16", "--plus", "").status).toBe(1);
+    });
+
+    it("accepts negative steps, which look like flags but are not", () => {
+      const back = runCli("--from", "2026-08-16", "--plus", "-7");
+      expect(back.status).toBe(0);
+      expect(back.stdout).toBe("2026-08-09\n");
     });
 
     it("leaves the existing flags working", () => {
