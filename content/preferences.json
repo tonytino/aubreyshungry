@@ -1,0 +1,20 @@
+{
+  "servingsPerMeal": 4,
+  "freshMealsPerWeekMin": 2,
+  "snacksPerWeekTarget": 3,
+  "fattyFishMealsPerWeekMin": 2,
+  "distinctFoodsPerWeekTarget": 30,
+  "pantryStaples": [
+    "extra-virgin olive oil",
+    "tamari (certified GF)",
+    "quinoa",
+    "brown rice",
+    "garlic",
+    "ground turmeric",
+    "black pepper",
+    "ground cinnamon",
+    "sea salt",
+    "apple-cider vinegar"
+  ],
+  "avoidIngredients": []
+}

@@ -15,6 +15,7 @@
     "preflight": "biome check . && tsc --noEmit && vitest run",
     "lint": "biome lint --write .",
     "lint:dietary": "node scripts/dietary-safety/lint.mjs",
+    "validate:content": "vitest run tests/unit/content-dir.test.ts",
     "format": "biome format --write .",
     "changelog:preview": "node scripts/changelog.mjs preview",
     "changelog:check": "node scripts/changelog.mjs check",

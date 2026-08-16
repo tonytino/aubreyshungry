@@ -1,0 +1,69 @@
+name: Plan reminder
+
+# Zero-LLM reminder (docs/agents/generation.md): every Thursday, check whether
+# the CURRENT ISO week's plan exists at content/weeks/<week>.json and open a
+# reminder issue when it is missing. This never generates content and never
+# calls an LLM — generation is owner-run locally via /generate-week
+# (docs/decisions/007-generation-entry-point-committed-skill.md). Free tier
+# only: GITHUB_TOKEN, no secrets.
+on:
+  schedule:
+    # Thursdays 12:00 UTC — before-weekend-shopping cadence per generation.md.
+    - cron: "0 12 * * 4"
+  workflow_dispatch:
+
+# Least privilege: read the checkout, write issues (create + list).
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      # Node is preinstalled on ubuntu-latest and the script is zero-dep ESM,
+      # so no pnpm/setup-node/install is needed (same pattern as the guard
+      # scripts in pr-conventions.yml).
+      # WEEK is computed on its own line so a script failure fails the step
+      # (command substitution inside `echo` would swallow the exit status and
+      # emit an empty week); the shape guard belt-and-braces the same risk.
+      - name: Compute the current UTC ISO week
+        id: week
+        run: |
+          WEEK=$(node scripts/plan-reminder/current-iso-week.mjs)
+          case "$WEEK" in
+            [0-9][0-9][0-9][0-9]-W[0-9][0-9]) ;;
+            *) echo "::error::current-iso-week.mjs printed '$WEEK', not YYYY-Www"; exit 1 ;;
+          esac
+          echo "week=$WEEK" >> "$GITHUB_OUTPUT"
+
+      # The week identifier comes from our own script (shape YYYY-Www), passed
+      # via env — never inline ${{ }} into script bodies elsewhere in this
+      # repo's workflows; kept consistent here.
+      - name: Open a reminder issue if the week's plan is missing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          WEEK: ${{ steps.week.outputs.week }}
+        run: |
+          if [ -f "content/weeks/$WEEK.json" ]; then
+            echo "✓ Plan for $WEEK exists — no reminder needed."
+            exit 0
+          fi
+          TITLE="Plan missing for $WEEK"
+          # No duplicates: skip when an OPEN issue with this exact title exists.
+          EXISTING=$(gh issue list --state open --json title \
+            --jq "[.[] | select(.title == \"$TITLE\")] | length")
+          if [ "$EXISTING" != "0" ]; then
+            echo "✓ Open issue \"$TITLE\" already exists — not creating a duplicate."
+            exit 0
+          fi
+          gh issue create \
+            --title "$TITLE" \
+            --label "type:chore" \
+            --label "status:ready" \
+            --body "$(printf 'No plan file exists at content/weeks/%s.json for the current ISO week.\n\nRun the owner-local generation session with the explicit week argument: /generate-week %s (the skill defaults to NEXT week; this reminder is about the CURRENT one) — see docs/agents/generation.md. This issue was opened automatically by .github/workflows/plan-reminder.yml (zero-LLM reminder).' "$WEEK" "$WEEK")"
+          echo "✓ Opened reminder issue: $TITLE"
