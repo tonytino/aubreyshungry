@@ -1,0 +1,26 @@
+{
+  "slug": "banana-sunflower-cinnamon-bites",
+  "title": "Banana Sunflower Cinnamon Bites",
+  "servings": 4,
+  "prepMinutes": 10,
+  "cookMinutes": 0,
+  "style": "snack",
+  "ingredients": [
+    { "name": "banana", "quantity": 4, "unit": "piece", "section": "produce" },
+    { "name": "sunflower seed butter", "quantity": 0.5, "unit": "cup", "section": "pantry" },
+    { "name": "pumpkin seeds", "quantity": 0.25, "unit": "cup", "section": "pantry" },
+    { "name": "chia seeds", "quantity": 2, "unit": "tbsp", "section": "pantry" },
+    { "name": "ground cinnamon", "quantity": 0.5, "unit": "tsp", "section": "spices" }
+  ],
+  "steps": [
+    "Slice the bananas into thick rounds.",
+    "Sandwich pairs of rounds with a spoonful of sunflower seed butter.",
+    "Dust with the cinnamon, then press the chia and pumpkin seeds onto the edges.",
+    "Freeze on a lined tray for 1 hour, then move to a container."
+  ],
+  "storageNotes": "Eat within a day if kept in the refrigerator, since cut banana browns quickly. Frozen they keep 2 weeks and are better that way — take them out 5 minutes before eating.",
+  "goldenRuleCallouts": [
+    "Sunflower seed butter carries this, so the week stays free of tree nuts entirely.",
+    "Uses the ripe bananas already in the house before they turn — freezing is what buys the extra days."
+  ]
+}
