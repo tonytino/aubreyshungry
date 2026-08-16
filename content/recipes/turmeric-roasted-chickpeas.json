@@ -6,12 +6,42 @@
   "cookMinutes": 35,
   "style": "snack",
   "ingredients": [
-    { "name": "chickpeas", "quantity": 2, "unit": "can", "section": "pantry" },
-    { "name": "extra-virgin olive oil", "quantity": 2, "unit": "tbsp", "section": "pantry" },
-    { "name": "ground turmeric", "quantity": 1, "unit": "tsp", "section": "spices" },
-    { "name": "ground cumin", "quantity": 0.5, "unit": "tsp", "section": "spices" },
-    { "name": "black pepper", "quantity": 0.5, "unit": "tsp", "section": "spices" },
-    { "name": "sea salt", "quantity": 0.5, "unit": "tsp", "section": "spices" }
+    {
+      "name": "chickpeas (15 oz can)",
+      "quantity": 2,
+      "unit": "can",
+      "section": "pantry"
+    },
+    {
+      "name": "extra-virgin olive oil",
+      "quantity": 2,
+      "unit": "tbsp",
+      "section": "pantry"
+    },
+    {
+      "name": "ground turmeric",
+      "quantity": 1,
+      "unit": "tsp",
+      "section": "spices"
+    },
+    {
+      "name": "ground cumin",
+      "quantity": 0.5,
+      "unit": "tsp",
+      "section": "spices"
+    },
+    {
+      "name": "black pepper",
+      "quantity": 0.5,
+      "unit": "tsp",
+      "section": "spices"
+    },
+    {
+      "name": "sea salt",
+      "quantity": 0.5,
+      "unit": "tsp",
+      "section": "spices"
+    }
   ],
   "steps": [
     "Drain, rinse, and dry the chickpeas thoroughly — dry chickpeas are what makes them crisp.",
@@ -22,5 +52,6 @@
   "goldenRuleCallouts": [
     "A crunchy snack built from a legume rather than a processed gluten-free packet.",
     "Individual spices, not a blend, so there is no label to check."
-  ]
+  ],
+  "storageNotes": "Store loosely covered at room temperature and eat within 2 days. An airtight container traps steam and softens them, and the refrigerator softens them faster still."
 }

@@ -6,21 +6,83 @@
   "cookMinutes": 0,
   "style": "fresh",
   "ingredients": [
-    { "name": "sardines packed in olive oil", "quantity": 3, "unit": "can", "section": "protein" },
-    { "name": "cannellini beans", "quantity": 2, "unit": "can", "section": "pantry" },
-    { "name": "cherry tomatoes", "quantity": 2, "unit": "cup", "section": "produce" },
-    { "name": "arugula", "quantity": 4, "unit": "oz", "section": "produce" },
-    { "name": "red onion", "quantity": 0.5, "unit": "piece", "section": "produce" },
-    { "name": "flat-leaf parsley", "quantity": 1, "unit": "bunch", "section": "produce" },
-    { "name": "garlic", "quantity": 1, "unit": "clove", "section": "produce" },
-    { "name": "lemon", "quantity": 2, "unit": "piece", "section": "produce" },
-    { "name": "extra-virgin olive oil", "quantity": 3, "unit": "tbsp", "section": "pantry" },
-    { "name": "black pepper", "quantity": 0.5, "unit": "tsp", "section": "spices" }
+    {
+      "name": "sardines packed in olive oil (3.75 oz can)",
+      "quantity": 3,
+      "unit": "can",
+      "section": "protein"
+    },
+    {
+      "name": "cannellini beans (15 oz can)",
+      "quantity": 2,
+      "unit": "can",
+      "section": "pantry"
+    },
+    {
+      "name": "cherry tomatoes",
+      "quantity": 2,
+      "unit": "cup",
+      "section": "produce"
+    },
+    {
+      "name": "arugula",
+      "quantity": 4,
+      "unit": "oz",
+      "section": "produce"
+    },
+    {
+      "name": "red cabbage",
+      "quantity": 0.25,
+      "unit": "head",
+      "section": "produce"
+    },
+    {
+      "name": "red onion",
+      "quantity": 0.5,
+      "unit": "piece",
+      "section": "produce"
+    },
+    {
+      "name": "flat-leaf parsley",
+      "quantity": 1,
+      "unit": "bunch",
+      "section": "produce"
+    },
+    {
+      "name": "garlic",
+      "quantity": 1,
+      "unit": "clove",
+      "section": "produce"
+    },
+    {
+      "name": "lemon",
+      "quantity": 2,
+      "unit": "piece",
+      "section": "produce"
+    },
+    {
+      "name": "extra-virgin olive oil",
+      "quantity": 3,
+      "unit": "tbsp",
+      "section": "pantry"
+    },
+    {
+      "name": "black pepper",
+      "quantity": 0.5,
+      "unit": "tsp",
+      "section": "spices"
+    },
+    {
+      "name": "sea salt",
+      "quantity": 0.5,
+      "unit": "tsp",
+      "section": "spices"
+    }
   ],
   "steps": [
-    "Drain and rinse the beans. Halve the tomatoes, slice the red onion thinly, and chop the parsley.",
-    "Whisk the olive oil, the juice of both lemons, the grated garlic, and the black pepper into a dressing.",
-    "Toss the beans, tomatoes, onion, and parsley with most of the dressing and let them sit 10 minutes.",
+    "Drain and rinse the beans. Halve the tomatoes, shred the red cabbage finely, slice the red onion thinly, and chop the parsley.",
+    "Whisk the olive oil, the juice of both lemons, the grated garlic, the black pepper, and the sea salt into a dressing.",
+    "Toss the beans, tomatoes, cabbage, onion, and parsley with most of the dressing and let them sit 10 minutes.",
     "Fold the arugula through at the last moment so it stays crisp.",
     "Top with the drained sardines and spoon the remaining dressing over them."
   ],
