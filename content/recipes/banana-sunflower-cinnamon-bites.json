@@ -13,10 +13,11 @@
       "section": "produce"
     },
     {
-      "name": "sunflower seed butter",
+      "name": "sunflower seed butter (dedicated nut-free facility)",
       "quantity": 0.5,
       "unit": "cup",
-      "section": "pantry"
+      "section": "pantry",
+      "safetyNote": "read the allergen statement — jarred seed and nut butters are commonly ground on shared lines, so buy a brand made in a dedicated nut-free facility"
     },
     {
       "name": "pumpkin seeds",
@@ -38,14 +39,14 @@
     }
   ],
   "steps": [
-    "Slice the bananas into thick rounds — use however many are ripe; four is a guide, not a requirement.",
+    "Slice the bananas into thick rounds on Sunday, while they are at their best — use however many are ripe; four is a guide, not a requirement.",
     "Sandwich pairs of rounds with a spoonful of sunflower seed butter.",
     "Dust with the cinnamon, then press the chia and pumpkin seeds onto the edges.",
     "Freeze on a lined tray for 1 hour, then move to a container."
   ],
   "storageNotes": "Eat within a day if kept in the refrigerator, since cut banana browns quickly. Frozen they keep 2 weeks and are better that way — take them out 5 minutes before eating.",
   "goldenRuleCallouts": [
-    "Sunflower seed butter carries this, so the week stays free of tree nuts entirely.",
+    "No tree nut is used in this snack, but a jarred butter is a processed product on someone else's equipment: buy one made in a dedicated nut-free facility and read the allergen statement before it comes into the house.",
     "Uses the ripe bananas already in the house before they turn — freezing is what buys the extra days."
   ]
 }

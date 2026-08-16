@@ -154,8 +154,14 @@ carries the substance.
   breaks Rule 1 or Rule 2 — or that cannot be verified clear of them — is
   **excluded, and the exclusion is named in the PR body with the rule it
   broke**. Never a silent drop, never an exception because it was already
-  bought. (An `avoidIngredients` entry is only a soft dislike; the owner
-  volunteering the item here overrides that.)
+  bought.
+- **An `avoidIngredients` match gets confirmed, not assumed.** Having an item
+  on hand is not permission to cook it. If an on-hand item is listed in
+  `avoidIngredients`, ask once, naming that specific item — which is not the
+  food-group permission check the standing rule forbids. Without an answer it
+  stays out; if the owner says to use it, the override is named in the PR body.
+  (`avoidIngredients` holds soft dislikes only; `app/content/preferences.ts` is
+  authoritative.)
 - **Schedule by perishability, most perishable first.** The week runs
   Sunday→Saturday: berries, soft fruit, herbs, greens, mushrooms, cut veg and
   fresh fish land Sunday–Tuesday; hardy produce can carry the back half. A

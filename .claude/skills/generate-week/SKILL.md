@@ -172,9 +172,20 @@ question is not.
      Rule 1 (gluten) or Rule 2 (cashews/pistachios), or something you cannot
      verify is clear of them, **exclude it and say so in the PR body** —
      name the item and the rule. Never silently drop it, and never work it in
-     "just this once because they already bought it". An `avoidIngredients`
-     entry is different: that is a soft dislike, and the owner volunteering
-     the item here overrides it.
+     "just this once because they already bought it".
+   - **An `avoidIngredients` match gets confirmed, not assumed.** If an
+     on-hand item appears in `avoidIngredients`, do **not** treat merely
+     having it as permission to cook it — "I have X" is not "please cook X".
+     Ask once, explicitly, naming the item: *"you have X on hand but it is
+     listed in avoidIngredients — use it this week anyway?"* This does not
+     breach the standing rule in §1: that rule forbids permission checks on a
+     whole **food group**, and this is a check on one specific item the owner
+     already asked to avoid. Without an answer, leave it out. If the owner
+     does say to use it, **name it in the PR body** alongside any Rule 1/2
+     exclusions, so the override is visible rather than buried in a diff.
+     (`avoidIngredients` holds soft dislikes only — `app/content/preferences.ts`
+     is authoritative and says so — but a silent reinstatement is still the
+     kind of thing the owner should see.)
    - **Schedule by perishability, most perishable first.** This is the part
      that gets missed. The week runs Sunday→Saturday, and a berry bought
      before the Sunday shop does not survive to Saturday. Rank the on-hand
@@ -207,7 +218,11 @@ question is not.
      itself. Disclose instead: **name the on-hand items in the week's `notes`
      field** (e.g. *"Planned around the blueberries and spinach you already
      have. They still appear on the shopping list — it is derived from the
-     recipes — so cross them off."*) and repeat it in the PR body. The list
+     recipes — so cross off whichever you already have enough of."* Say it
+     that way rather than "cross these off": you do not know how much the
+     owner has left, and a blanket instruction to skip a line can leave the
+     week short — the mirror image of the failure this rule guards against.)
+     Repeat it in the PR body. The list
      stays honest and the owner is told, in writing, which lines to skip.
 7. **If `content/weeks/<weekStart>.json` already exists, you are
    regenerating.** Say so explicitly in the PR body and follow
