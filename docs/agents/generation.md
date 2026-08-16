@@ -37,9 +37,27 @@ built.
   in the reminder workflow both. The owner shops and cooks on Mountain Time,
   and a UTC "today" rolls over at 5–6 PM local, which would silently name the
   wrong week on an evening run.
-- Week-boundary math lives in `app/utils/week-dates.ts` (`weekStartDate()`,
-  `formatWeekRange()`, `weekLabel()`) and, for the zero-dependency workflow
-  path, `scripts/plan-reminder/current-week.mjs`. Never hand-roll it.
+- **Never hand-roll week math or a timezone lookup.** There are exactly three
+  sanctioned helpers — use them, and add to them rather than beside them:
+  - `app/utils/week-dates.ts` — pure, UTC-only, safe anywhere including
+    component render: `weekStartDate()`, `weekContains(weekStart, date)` (the
+    span check: is this `YYYY-MM-DD` inside that Sunday→Saturday week?),
+    `formatWeekRange()`, `weekLabel()`.
+  - `app/utils/denver-today.ts` — `denverToday()`, the **only** sanctioned way
+    to ask "what is today in Denver", returning `YYYY-MM-DD`. It is impure and
+    timezone-aware by design. ⚠️ **Server-only: call it in a loader or server
+    function, NEVER during component render.** Resolving the current week
+    during render lets a UTC server and a browser in another timezone pick
+    different weeks — a hydration mismatch, which is exactly the drift
+    `week-dates.ts` is kept pure to avoid. Resolve once on the server, pass
+    the chosen week down as data.
+  - `scripts/plan-reminder/current-week.mjs` — the zero-dependency path for
+    the workflow and for shell use (`--next`, `--from <date> --plus <days>`,
+    which also asserts the `--from` date is a Sunday).
+
+  Resolving Denver in a fourth place is the failure this list exists to
+  prevent; the repo already pins the two implementations together with a sync
+  test.
 
 ## The weekly runbook (settled — ADR-007, amended by ADR-008)
 
