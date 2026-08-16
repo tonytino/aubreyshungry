@@ -6,9 +6,10 @@ import { weekStartDate } from "../../app/utils/week-dates";
 // @ts-expect-error — .mjs script, no type declarations
 import * as planReminder from "../../scripts/plan-reminder/current-week.mjs";
 
-const { weekStartOf, currentWeekStart } = planReminder as {
+const { weekStartOf, currentWeekStart, nextWeekStart } = planReminder as {
   weekStartOf: (instant: Date) => string;
-  currentWeekStart: () => string;
+  currentWeekStart: (now?: Date) => string;
+  nextWeekStart: (now?: Date) => string;
 };
 
 const MS_PER_DAY = 86_400_000;
@@ -165,29 +166,73 @@ describe("plan-reminder weekStart stays in sync with app/utils/week-dates", () =
     expect(() => weekStartOf("2026-08-16" as unknown as Date)).toThrow(/valid Date/);
   });
 
-  it("the CLI (the seam plan-reminder.yml uses) prints the current week to stdout", () => {
+  it("nextWeekStart is always exactly seven days after the current Sunday", () => {
+    // The Thursday reminder chases the UPCOMING week, so this offset is the
+    // thing that decides which plan gets nagged about. Checked across every
+    // instant in the ranges — including both DST transitions, where an
+    // instant-based `+7 days` would drift by a day.
+    for (const instant of instants()) {
+      const current = weekStartDate(currentWeekStart(instant));
+      const next = weekStartDate(nextWeekStart(instant));
+      const label = `${instant.toISOString()} → ${nextWeekStart(instant)}`;
+      expect(next.getUTCDay(), label).toBe(0);
+      expect(next.getTime() - current.getTime(), label).toBe(7 * MS_PER_DAY);
+    }
+  });
+
+  it("nextWeekStart crosses month and year boundaries correctly", () => {
+    const cases: [string, string][] = [
+      // Thursday 2026-08-27 (MDT): current week starts Aug 23, next Aug 30.
+      ["2026-08-27T18:00:00Z", "2026-08-30"],
+      // Thursday 2026-12-31: next week starts in 2027.
+      ["2026-12-31T18:00:00Z", "2027-01-03"],
+      // Leap day itself (Thu 2024-02-29): Feb 25 → Mar 3, counting Feb 29.
+      ["2024-02-29T18:00:00Z", "2024-03-03"],
+      // Thursday before the fall-back Sunday: next week IS that Sunday.
+      ["2026-10-29T18:00:00Z", "2026-11-01"],
+      // Thursday before the spring-forward Sunday.
+      ["2026-03-05T18:00:00Z", "2026-03-08"],
+    ];
+    for (const [iso, expected] of cases) {
+      expect(nextWeekStart(new Date(iso)), iso).toBe(expected);
+    }
+  });
+
+  it("the CLI (the seam plan-reminder.yml uses) prints week identifiers to stdout", () => {
     const script = path.resolve(
       path.dirname(fileURLToPath(import.meta.url)),
       "../../scripts/plan-reminder/current-week.mjs"
     );
     // Sample before/after so a Denver-midnight week rollover during the
-    // spawn can never flake the equality check.
-    const before = weekStartOf(new Date());
-    const stdout = execFileSync(process.execPath, [script], { encoding: "utf-8" });
-    const after = weekStartOf(new Date());
-    expect(stdout).toMatch(/^\d{4}-\d{2}-\d{2}\n$/);
-    expect([before, after]).toContain(stdout.trim());
-    // The workflow's shape guard also assumes this is a Sunday.
-    expect(weekStartDate(stdout.trim()).getUTCDay()).toBe(0);
+    // spawn can never flake the equality checks.
+    const before = new Date();
+    const current = execFileSync(process.execPath, [script], { encoding: "utf-8" });
+    // `--next` is what the workflow actually invokes.
+    const next = execFileSync(process.execPath, [script, "--next"], { encoding: "utf-8" });
+    const after = new Date();
+
+    for (const stdout of [current, next]) {
+      // Exactly what the workflow's shape guard accepts.
+      expect(stdout).toMatch(/^\d{4}-\d{2}-\d{2}\n$/);
+      // The guard also assumes a Sunday; weekStartDate throws otherwise.
+      expect(weekStartDate(stdout.trim()).getUTCDay()).toBe(0);
+    }
+    expect([currentWeekStart(before), currentWeekStart(after)]).toContain(current.trim());
+    expect([nextWeekStart(before), nextWeekStart(after)]).toContain(next.trim());
+    // The two must differ, or the workflow would nag about the wrong week.
+    expect(next.trim()).not.toBe(current.trim());
   });
 
-  it("currentWeekStart returns a well-formed identifier for now", () => {
+  it("currentWeekStart and nextWeekStart return well-formed identifiers for now", () => {
     // Sample "now" before and after so a rollover between the calls can
     // never flake the assertion.
-    const before = weekStartOf(new Date());
+    const before = new Date();
     const current = currentWeekStart();
-    const after = weekStartOf(new Date());
-    expect([before, after]).toContain(current);
+    const next = nextWeekStart();
+    const after = new Date();
+    expect([currentWeekStart(before), currentWeekStart(after)]).toContain(current);
+    expect([nextWeekStart(before), nextWeekStart(after)]).toContain(next);
     expect(current).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(next).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

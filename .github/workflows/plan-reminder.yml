@@ -1,12 +1,17 @@
 name: Plan reminder
 
 # Zero-LLM reminder (docs/agents/generation.md): every Thursday, check whether
-# the CURRENT week's plan exists at content/weeks/<weekStart>.json and open a
+# the UPCOMING week's plan exists at content/weeks/<weekStart>.json and open a
 # reminder issue when it is missing. A week runs Sunday→Saturday and is named
 # by its starting Sunday's date (YYYY-MM-DD), resolved in America/Denver — the
-# week rolls over at Denver midnight, not UTC midnight. This never generates
-# content and never calls an LLM — generation is owner-run locally via
-# /generate-week
+# week rolls over at Denver midnight, not UTC midnight.
+#
+# UPCOMING, not current: by Thursday the current week is 5/7 spent, so the
+# week worth chasing is the one starting the coming Sunday — which is exactly
+# what the before-weekend-shopping cadence below is for.
+#
+# This never generates content and never calls an LLM — generation is
+# owner-run locally via /generate-week
 # (docs/decisions/007-generation-entry-point-committed-skill.md). Free tier
 # only: GITHUB_TOKEN, no secrets.
 on:
@@ -33,13 +38,13 @@ jobs:
       # WEEK is computed on its own line so a script failure fails the step
       # (command substitution inside `echo` would swallow the exit status and
       # emit an empty week); the shape guard belt-and-braces the same risk.
-      - name: Compute the current week (Mountain Time)
+      - name: Compute the upcoming week (Mountain Time)
         id: week
         run: |
-          WEEK=$(node scripts/plan-reminder/current-week.mjs)
+          WEEK=$(node scripts/plan-reminder/current-week.mjs --next)
           case "$WEEK" in
             [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
-            *) echo "::error::current-week.mjs printed '$WEEK', not YYYY-MM-DD"; exit 1 ;;
+            *) echo "::error::current-week.mjs --next printed '$WEEK', not YYYY-MM-DD"; exit 1 ;;
           esac
           echo "week=$WEEK" >> "$GITHUB_OUTPUT"
 
@@ -68,5 +73,5 @@ jobs:
             --title "$TITLE" \
             --label "type:chore" \
             --label "status:ready" \
-            --body "$(printf 'No plan file exists at content/weeks/%s.json for the current week (Sunday %s through the following Saturday).\n\nRun the owner-local generation session: /generate-week — it takes no week argument; it offers the candidate weeks and you pick one. Pick %s to cover this reminder (the skill leads with NEXT week; this reminder is about the CURRENT one) — see docs/agents/generation.md. This issue was opened automatically by .github/workflows/plan-reminder.yml (zero-LLM reminder).' "$WEEK" "$WEEK" "$WEEK")"
+            --body "$(printf 'No plan file exists at content/weeks/%s.json for the UPCOMING week — the Sunday-to-Saturday week starting %s.\n\nRun the owner-local generation session: /generate-week. It takes no week argument — it offers the candidate weeks and you pick one, so pick the week starting %s. See docs/agents/generation.md. This issue was opened automatically by .github/workflows/plan-reminder.yml (zero-LLM reminder).' "$WEEK" "$WEEK" "$WEEK")"
           echo "✓ Opened reminder issue: $TITLE"

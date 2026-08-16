@@ -74,22 +74,50 @@ export function weekStartOf(instant) {
   const { year, month, day } = denverCalendarDate(instant);
   const dayUtc = Date.UTC(year, month - 1, day);
   // getUTCDay(): 0 = Sunday … 6 = Saturday — step back to this week's Sunday.
-  const sunday = new Date(dayUtc - new Date(dayUtc).getUTCDay() * MS_PER_DAY);
-  const yyyy = String(sunday.getUTCFullYear()).padStart(4, "0");
-  const mm = String(sunday.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(sunday.getUTCDate()).padStart(2, "0");
+  return formatUtcDate(new Date(dayUtc - new Date(dayUtc).getUTCDay() * MS_PER_DAY));
+}
+
+/**
+ * `YYYY-MM-DD` for a Date's UTC calendar day.
+ * @param {Date} date
+ * @returns {string}
+ */
+function formatUtcDate(date) {
+  const yyyy = String(date.getUTCFullYear()).padStart(4, "0");
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(date.getUTCDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
 /**
  * The current week's identifier, with "now" resolved in America/Denver.
+ * @param {Date} [now]
  * @returns {string}
  */
-export function currentWeekStart() {
-  return weekStartOf(new Date());
+export function currentWeekStart(now = new Date()) {
+  return weekStartOf(now);
 }
 
-// CLI: print the current week identifier. Guarded so imports (tests) don't print.
+/**
+ * The UPCOMING week's identifier — the Sunday after the current one. This is
+ * what the Thursday reminder checks (see the module header).
+ *
+ * The step is taken on the IDENTIFIER, not on the instant: re-anchoring the
+ * current Sunday at UTC midnight and adding exactly 7×24h is DST-free by
+ * construction. Adding 7 days of absolute time to `now` instead would land a
+ * day off whenever a DST transition falls inside the window and `now` sits
+ * within an hour of Denver midnight.
+ * @param {Date} [now]
+ * @returns {string}
+ */
+export function nextWeekStart(now = new Date()) {
+  const current = currentWeekStart(now);
+  return formatUtcDate(new Date(Date.parse(`${current}T00:00:00Z`) + 7 * MS_PER_DAY));
+}
+
+// CLI: print a week identifier — `--next` for the upcoming week (what the
+// reminder workflow asks for), otherwise the current one. Guarded so imports
+// (tests) don't print.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  console.log(currentWeekStart());
+  console.log(process.argv.includes("--next") ? nextWeekStart() : currentWeekStart());
 }
