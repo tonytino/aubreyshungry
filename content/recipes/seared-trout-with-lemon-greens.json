@@ -10,7 +10,8 @@
       "name": "rainbow trout fillet",
       "quantity": 1.5,
       "unit": "lb",
-      "section": "protein"
+      "section": "protein",
+      "safetyNote": "buy Saturday and cook it that day, or freeze it on arrival and thaw it in the refrigerator Friday night — raw fish keeps only 1 to 2 days refrigerated"
     },
     {
       "name": "arugula",
@@ -70,6 +71,7 @@
   "steps": [
     "If the trout was bought with the Sunday shop, freeze it on arrival and move it to the refrigerator Friday night to thaw.",
     "Pat the trout dry and season it with the black pepper and sea salt.",
+    "Toast the pumpkin seeds in the dry pan for 2 minutes, until they pop, then set them aside.",
     "Sear the fillets skin-side down in 1 tablespoon olive oil for 4 minutes, then flip and cook 2 minutes more.",
     "Lift the fish out. In the same pan, cook the garlic and ginger for 30 seconds.",
     "Add the stripped kale and cook 2 minutes, then fold the arugula through until it just wilts.",

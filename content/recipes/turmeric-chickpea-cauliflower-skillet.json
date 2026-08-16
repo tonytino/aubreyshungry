@@ -14,13 +14,13 @@
     },
     {
       "name": "cauliflower",
-      "quantity": 1,
+      "quantity": 0.5,
       "unit": "head",
       "section": "produce"
     },
     {
       "name": "broccoli",
-      "quantity": 1,
+      "quantity": 0.5,
       "unit": "head",
       "section": "produce"
     },
