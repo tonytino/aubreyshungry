@@ -61,7 +61,9 @@ weekly owner steps:
    `weekStart` under `content/weeks/` and **asks the owner** (AskUserQuestion)
    whether to *regenerate that week* or *generate the next one*
    (`latest + 7 days`); with no weeks on disk yet it offers the current
-   Mountain-Time week (the Sunday on or before today) and the one after it.
+   Mountain-Time week (the Sunday on or before today) and the one after it,
+   and if a reminder issue named a week outside those choices (a missed
+   cycle), it offers that week too.
    With the answer, it drafts `content/weeks/<weekStart>.json` plus any new
    `content/recipes/<slug>.json` files (reusing existing slugs where a dish
    repeats).

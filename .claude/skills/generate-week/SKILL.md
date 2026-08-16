@@ -33,14 +33,26 @@ the target week with the owner in step 2 (ADR-008 replaced the old
   date forward in the evening (UTC midnight is 5–6 PM in Denver), so a
   Saturday-evening run would compute next week's Sunday and quietly plan
   the wrong week.
-- **Never hand-roll a week boundary.** Use the helpers:
+- **Never hand-roll a week boundary, and never do date math in the shell.**
+  Use the helper script — it is portable, tested, and does the arithmetic
+  **and** the Sunday assertion in one call:
 
   ```bash
-  TZ=America/Denver date +%F                   # today, Mountain Time
+  TZ=America/Denver date +%F                   # today, Mountain Time (portable: no date math)
   node scripts/plan-reminder/current-week.mjs  # the Sunday starting the current MT week
-  date -u -d "2026-08-16 +7 days" +%F          # the following week's Sunday
-  date -u -d "2026-08-16" +%A                  # ⚠️ ALWAYS confirm: prints "Sunday"
+  node scripts/plan-reminder/current-week.mjs --next                      # the UPCOMING week — what the reminder checks
+  node scripts/plan-reminder/current-week.mjs --from 2026-08-16 --plus 7  # → 2026-08-23
+  node scripts/plan-reminder/current-week.mjs --from 2026-08-16 --plus 0  # ⚠️ Sunday assertion
   ```
+
+  `--from <YYYY-MM-DD> --plus <days>` prints the resulting date and **exits
+  non-zero, naming the actual weekday, when `--from` is not a Sunday** — so
+  `--plus 0` is the confirm-it-is-a-Sunday check and `--plus 7` is the next
+  week, both through the tested implementation. ⚠️ **Do NOT use
+  `date -d "… +7 days"` or `date -d "…" +%A`.** `-d` as relative-date parsing
+  is GNU coreutils only; on BSD/macOS `date`, `-d` means "set daylight saving
+  time", the argument is swallowed, and the command **silently prints today**
+  — a Sunday check that confirms nothing on the owner's own laptop.
 
   `app/utils/week-dates.ts` is the TypeScript reference implementation
   (`weekStartDate()`, `formatWeekRange()`, `weekLabel()`).
@@ -78,32 +90,43 @@ There is no default and no argument. Work out the two candidate weeks, then
 1. **Find the latest generated week.** List `content/weeks/*.json`; each
    basename is a `weekStart` date, so the **lexicographically highest
    basename is the latest week** (`YYYY-MM-DD` sorts chronologically).
-2. **Compute the two choices** and confirm both are Sundays (`date -u -d
-   "<date>" +%A`):
-   - **Regenerate the last generated week** — `<latest weekStart>`.
+2. **Compute the two base choices** with the helper — one call per date does
+   the arithmetic and asserts the Sunday:
+   - **Regenerate the last generated week** — `<latest weekStart>`
+     (`node scripts/plan-reminder/current-week.mjs --from <latest> --plus 0`).
    - **Generate the next week** — `<latest weekStart + 7 days>`
-     (`date -u -d "<latest> +7 days" +%F`).
+     (`node scripts/plan-reminder/current-week.mjs --from <latest> --plus 7`).
 3. **`content/weeks/` is empty or has no week files** (the state today —
    nothing has been published yet): there is nothing to regenerate, so offer
    instead:
    - **The current Mountain-Time week** — the Sunday on or before today in
      `America/Denver`, i.e. exactly what
      `node scripts/plan-reminder/current-week.mjs` prints, and
-   - **The week after it** — that date `+ 7 days`.
-4. **Prompt the owner with the AskUserQuestion tool** — not a question buried
+   - **The week after it** — that date `--plus 7`.
+4. **If a `Plan missing for <date>` reminder issue prompted this run, make
+   sure that date is on the menu.** The Thursday reminder
+   (`.github/workflows/plan-reminder.yml`) deliberately checks the
+   **upcoming** week — the one the owner is about to shop for — and it
+   anchors on **today**, not on what is on disk: it computes
+   `currentWeekStart() + 7 days` — which is exactly what
+   `node scripts/plan-reminder/current-week.mjs --next` prints, so compute it
+   rather than trusting a pasted issue title. It usually equals the *generate
+   the next week* choice, but **not when a cycle was missed**: with
+   `2026-08-09` the latest on disk and the reminder firing for `2026-08-23`,
+   the nagged week is in neither base choice. Whenever that date is not
+   already among the candidates, **add it as a third option** (assert it is a
+   Sunday the same way) and say in the option label that it is the week the
+   reminder asked for.
+5. **Prompt the owner with the AskUserQuestion tool** — not a question buried
    in prose. The owner runs many parallel sessions and misses inline
-   questions (`CLAUDE.md`). Offer exactly the two options from step 2 (or
-   step 3), each labelled with its **literal date and the Sun–Sat span** it
-   covers, e.g. "Regenerate 2026-08-16 (Sun Aug 16 – Sat Aug 22)" vs
-   "Generate 2026-08-23 (Sun Aug 23 – Sat Aug 29)". If the owner does not
+   questions (`CLAUDE.md`). Offer the candidates from steps 2–4 — the two
+   base choices, plus the reminder's week when step 4 added it — and **no
+   invented extras**. Label each with its **literal date and the Sun–Sat
+   span** it covers, e.g. "Regenerate 2026-08-16 (Sun Aug 16 – Sat Aug 22)"
+   vs "Generate 2026-08-23 (Sun Aug 23 – Sat Aug 29)". If the owner does not
    answer, **re-ask** — an unresponsive owner is busy, not an answer. Never
    guess the target week: generating the wrong week wastes a full
    high-stakes run and pollutes the archive.
-5. **If a `Plan missing for <date>` reminder issue prompted this run**, that
-   date is the **upcoming** week — the Thursday reminder
-   (`.github/workflows/plan-reminder.yml`) deliberately checks the week the
-   owner is about to shop for, so it normally matches the *generate the next
-   week* choice above. Still ask; still confirm the date is a Sunday.
 6. **If `content/weeks/<weekStart>.json` already exists, you are
    regenerating.** Say so explicitly in the PR body and follow
    `docs/agents/generation.md` → Regeneration. Regeneration replaces that
