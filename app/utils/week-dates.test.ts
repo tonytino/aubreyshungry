@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatWeekRange, weekLabel, weekStartDate } from "./week-dates";
+import { formatWeekRange, weekContains, weekLabel, weekStartDate } from "./week-dates";
 
 describe("weekStartDate", () => {
   it("returns UTC midnight of a mid-year Sunday", () => {
@@ -86,5 +86,55 @@ describe("weekLabel", () => {
 
   it("uses the Sunday's year, not the year the week ends in", () => {
     expect(weekLabel("2026-12-27")).toBe("Week of Dec 27, 2026");
+  });
+});
+
+describe("weekContains", () => {
+  it("covers all seven days from the Sunday through the Saturday", () => {
+    const days = [
+      "2026-08-16",
+      "2026-08-17",
+      "2026-08-18",
+      "2026-08-19",
+      "2026-08-20",
+      "2026-08-21",
+      "2026-08-22",
+    ];
+    for (const day of days) {
+      expect(weekContains("2026-08-16", day), day).toBe(true);
+    }
+  });
+
+  it("excludes the day before and the day after the span", () => {
+    expect(weekContains("2026-08-16", "2026-08-15")).toBe(false);
+    expect(weekContains("2026-08-16", "2026-08-23")).toBe(false);
+  });
+
+  it("spans month and year boundaries", () => {
+    expect(weekContains("2026-08-30", "2026-09-05")).toBe(true);
+    expect(weekContains("2026-08-30", "2026-09-06")).toBe(false);
+    expect(weekContains("2026-12-27", "2027-01-02")).toBe(true);
+    expect(weekContains("2026-12-27", "2027-01-03")).toBe(false);
+  });
+
+  it("counts the leap day", () => {
+    expect(weekContains("2024-02-25", "2024-02-29")).toBe(true);
+    expect(weekContains("2024-02-25", "2024-03-02")).toBe(true);
+    expect(weekContains("2024-02-25", "2024-03-03")).toBe(false);
+  });
+
+  it("is unaffected by DST — the local 23- and 25-hour Sundays still span 7 days", () => {
+    // Both transition weeks must contain their own Saturday and exclude the
+    // next Sunday, exactly like any other week.
+    expect(weekContains("2026-03-08", "2026-03-14")).toBe(true);
+    expect(weekContains("2026-03-08", "2026-03-15")).toBe(false);
+    expect(weekContains("2026-11-01", "2026-11-07")).toBe(true);
+    expect(weekContains("2026-11-01", "2026-11-08")).toBe(false);
+  });
+
+  it("throws on a non-Sunday week or a malformed date", () => {
+    expect(() => weekContains("2026-08-17", "2026-08-18")).toThrow(/not a Sunday/);
+    expect(() => weekContains("2026-08-16", "nonsense")).toThrow(/invalid calendar date/);
+    expect(() => weekContains("2026-08-16", "2026-13-01")).toThrow(/invalid calendar date/);
   });
 });

@@ -64,6 +64,25 @@ function formatMonthDay(date: Date): string {
 }
 
 /**
+ * Does the Sunday→Saturday week starting at `weekStart` cover the calendar
+ * date `date` (also `YYYY-MM-DD`)?
+ *
+ * Stays pure by taking the date as a STRING rather than reading a clock:
+ * whoever wants "is today in this week?" resolves today in the appropriate
+ * timezone first (see `app/utils/denver-today.ts`) and passes it in. Both
+ * sides are re-anchored at UTC midnight so this is plain day arithmetic —
+ * no DST-length day can move a boundary.
+ */
+export function weekContains(weekStart: string, date: string): boolean {
+  const start = weekStartDate(weekStart).getTime();
+  const day = Date.parse(`${date}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(day)) {
+    throw new Error(`invalid calendar date: "${date}" (expected YYYY-MM-DD)`);
+  }
+  return day >= start && day < start + 7 * MS_PER_DAY;
+}
+
+/**
  * Human date range covered by a week (Sunday–Saturday), e.g.
  * `"Aug 16–22, 2026"`, `"Aug 30 – Sep 5, 2026"`, or across a year boundary
  * `"Dec 27, 2026 – Jan 2, 2027"`.

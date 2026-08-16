@@ -33,10 +33,15 @@ export function WeekDigest({ digest }: { digest: WeekDigestData }) {
   return (
     <article className="flex flex-col gap-10">
       <header>
+        {/*
+          No raw identifier alongside the range: under ISO weeks the three
+          facts were mutually non-derivable ("Week 33, 2026" / the span /
+          "2026-W33"), so printing the identifier earned its place. A
+          weekStart is a plain date, so the label and the range already state
+          it — a third copy is noise, not information.
+        */}
         <h1 className="text-3xl font-bold tracking-tight">{weekLabel(week.weekStart)}</h1>
-        <p className="text-muted-foreground mt-1">
-          {formatWeekRange(week.weekStart)} · {week.weekStart}
-        </p>
+        <p className="text-muted-foreground mt-1">{formatWeekRange(week.weekStart)}</p>
       </header>
 
       {week.notes !== undefined && (

@@ -18,6 +18,8 @@
  */
 
 import * as path from "node:path";
+import { denverToday } from "~/utils/denver-today";
+import { weekContains } from "~/utils/week-dates";
 import type { Recipe, Week } from "./schema";
 import { type ShoppingList, buildShoppingList } from "./shopping-list";
 import { validateContentDir } from "./validate";
@@ -82,11 +84,59 @@ function toDigest(week: Week, recipesBySlug: Record<string, Recipe>): WeekDigest
   };
 }
 
-/** The most recent published week, or `null` before the first publish. */
-export function getLatestWeekDigest(dir: string = defaultContentDir()): WeekDigestData | null {
+/** What the home page renders: one week, plus a pointer to a newer one. */
+export type HomeDigest = {
+  digest: WeekDigestData;
+  /**
+   * `weekStart` of the next published week after the displayed one, or
+   * `null` when the displayed week is the newest on disk.
+   */
+  newerWeekStart: string | null;
+};
+
+/**
+ * The week the home page should lead with: the published week whose
+ * Sunday→Saturday span contains TODAY in America/Denver.
+ *
+ * Why not simply the newest week on disk: the Thursday reminder makes
+ * "publish next week" the happy path, so from Thursday until Sunday the
+ * newest file is a week nobody is cooking yet. Leading with it would show
+ * next week's menu and shopping list while the household is still working
+ * through the current one.
+ *
+ * Fallback: when no published week contains today — a skipped week, or only
+ * older (or only future) weeks on disk — fall back to the newest week on
+ * disk rather than rendering nothing. A gap in publishing must degrade to a
+ * stale-but-real digest, never to an empty front page.
+ *
+ * `now` is injectable for tests. It is read here, in server-only code called
+ * from a loader, and never during component render — see the warning in
+ * `app/utils/denver-today.ts`.
+ */
+export function getHomeDigest(
+  dir: string = defaultContentDir(),
+  now: Date = new Date()
+): HomeDigest | null {
   const { weeks, recipesBySlug } = loadContent(dir);
-  const latest = weeks[0];
-  return latest === undefined ? null : toDigest(latest, recipesBySlug);
+  if (weeks.length === 0) return null;
+
+  const today = denverToday(now);
+  // `weeks` is newest-first, so the first containing match is the only one
+  // (weeks cannot overlap — the identifier is unique and every span is
+  // exactly 7 days).
+  const index = weeks.findIndex((week) => weekContains(week.weekStart, today));
+  // -1 → no week covers today; fall back to the newest on disk (index 0).
+  const chosenIndex = index === -1 ? 0 : index;
+  const chosen = weeks[chosenIndex];
+  if (chosen === undefined) return null;
+
+  // Newest-first ordering means the NEXT published week sits one slot
+  // earlier. Absent when the displayed week is already the newest.
+  const newer = weeks[chosenIndex - 1];
+  return {
+    digest: toDigest(chosen, recipesBySlug),
+    newerWeekStart: newer === undefined ? null : newer.weekStart,
+  };
 }
 
 /** A specific week's digest, or `null` when that week isn't published. */

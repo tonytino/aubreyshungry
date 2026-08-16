@@ -7,6 +7,16 @@
  * (`YYYY-MM-DD`), so the workflow can check whether
  * `content/weeks/<weekStart>.json` exists. No LLM calls, no network, no deps.
  *
+ * It also serves the owner-local generation skill as a portable replacement
+ * for `date -u -d "<date> +7 days" +%F`. Relative-date parsing via `-d` is a
+ * GNU coreutils extension: on BSD/macOS `date`, `-d` means "set daylight
+ * saving time", so the argument is SWALLOWED and the command cheerfully
+ * prints today's date instead of failing. ADR-007 runs the skill in the
+ * owner's local session — very plausibly macOS — which would let the skill's
+ * Sunday-confirmation guard pass while confirming nothing. `--from`/`--plus`
+ * removes that trap: same Node the rest of the repo already requires, same
+ * answer on every platform, and a non-Sunday `--from` is a hard failure.
+ *
  * The workflow asks for the UPCOMING week (`--next`), not the current one:
  * the reminder fires on Thursday, by which point the current week is 5/7
  * spent and nagging about it buys nothing. The week worth chasing on a
@@ -98,26 +108,140 @@ export function currentWeekStart(now = new Date()) {
   return weekStartOf(now);
 }
 
+/** Weekday names indexed by `Date.getUTCDay()` — 0 = Sunday. */
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/**
+ * Parse a week identifier into its UTC-midnight Date, rejecting anything
+ * that is not a real calendar date falling on a Sunday. The thrown messages
+ * are the user-facing output of `--from`, so they name the actual weekday:
+ * this one call is meant to double as the skill's Sunday assertion.
+ * @param {string} value
+ * @returns {Date}
+ */
+function parseWeekStart(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match === null) {
+    throw new Error(`"${value}" is not a date in YYYY-MM-DD form`);
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  // Date.UTC rolls impossible dates over (Feb 30 → Mar 2), so round-trip the
+  // parts — otherwise a typo'd date would silently become a different one.
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throw new Error(`"${value}" is not a real calendar date`);
+  }
+  if (date.getUTCDay() !== 0) {
+    throw new Error(
+      `a week must start on a Sunday, but ${value} is a ${WEEKDAYS[date.getUTCDay()]}`
+    );
+  }
+  return date;
+}
+
+/**
+ * Step a week identifier by whole days, e.g. `weekStartPlus("2026-08-16", 7)`
+ * → `"2026-08-23"`. Negative values step backwards; `+6` gives the week's
+ * closing Saturday.
+ *
+ * The step is taken on the IDENTIFIER re-anchored at UTC midnight, never on
+ * a local-time instant, so it is DST-free by construction: no 23- or
+ * 25-hour day exists in UTC to absorb or add an hour.
+ * @param {string} weekStart
+ * @param {number} days
+ * @returns {string}
+ */
+export function weekStartPlus(weekStart, days) {
+  if (!Number.isInteger(days)) {
+    throw new Error(`weekStartPlus expects a whole number of days, got "${days}"`);
+  }
+  return formatUtcDate(new Date(parseWeekStart(weekStart).getTime() + days * MS_PER_DAY));
+}
+
 /**
  * The UPCOMING week's identifier — the Sunday after the current one. This is
  * what the Thursday reminder checks (see the module header).
- *
- * The step is taken on the IDENTIFIER, not on the instant: re-anchoring the
- * current Sunday at UTC midnight and adding exactly 7×24h is DST-free by
- * construction. Adding 7 days of absolute time to `now` instead would land a
- * day off whenever a DST transition falls inside the window and `now` sits
- * within an hour of Denver midnight.
  * @param {Date} [now]
  * @returns {string}
  */
 export function nextWeekStart(now = new Date()) {
-  const current = currentWeekStart(now);
-  return formatUtcDate(new Date(Date.parse(`${current}T00:00:00Z`) + 7 * MS_PER_DAY));
+  return weekStartPlus(currentWeekStart(now), 7);
+}
+
+const USAGE = "usage: current-week.mjs [--next | --from <YYYY-MM-DD> [--plus <days>]]";
+
+/**
+ * Resolve CLI arguments to the single identifier to print.
+ *
+ * Unknown arguments are a hard error rather than being ignored. A typo like
+ * `--form 2026-08-16` must not silently fall through to printing the current
+ * week — a command that quietly answers a different question than the one
+ * asked is the exact failure mode `--from` exists to eliminate.
+ * @param {string[]} args
+ * @returns {string}
+ */
+function resolveCli(args) {
+  /** @type {string | undefined} */
+  let from;
+  /** @type {string | undefined} */
+  let plus;
+  let next = false;
+
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === "--next") {
+      next = true;
+      continue;
+    }
+    if (arg === "--from" || arg === "--plus") {
+      const value = args[i + 1];
+      // A following flag means the value was omitted. Bare "-7" is a legal
+      // --plus value, so only "--" prefixes disqualify it.
+      if (value === undefined || value.startsWith("--")) {
+        throw new Error(`${arg} requires a value\n${USAGE}`);
+      }
+      if (arg === "--from") from = value;
+      else plus = value;
+      i += 1;
+      continue;
+    }
+    throw new Error(`unknown argument "${arg}"\n${USAGE}`);
+  }
+
+  if (from === undefined) {
+    if (plus !== undefined) {
+      throw new Error(`--plus requires --from\n${USAGE}`);
+    }
+    return next ? nextWeekStart() : currentWeekStart();
+  }
+  if (next) {
+    throw new Error(`--next and --from are mutually exclusive\n${USAGE}`);
+  }
+  // `--plus` defaults to 0 so `--from <date>` alone is a pure Sunday
+  // assertion that echoes the date back.
+  const days = plus === undefined ? 0 : Number(plus);
+  if (!Number.isInteger(days)) {
+    throw new Error(`--plus must be a whole number of days, got "${plus}"\n${USAGE}`);
+  }
+  return weekStartPlus(from, days);
 }
 
 // CLI: print a week identifier — `--next` for the upcoming week (what the
-// reminder workflow asks for), otherwise the current one. Guarded so imports
-// (tests) don't print.
+// reminder workflow asks for), `--from`/`--plus` for portable date math
+// (see the module header), otherwise the current week. Guarded so imports
+// (tests) don't print. Errors go to stderr with a non-zero exit so a caller's
+// `set -e` or `&&` chain actually stops.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  console.log(process.argv.includes("--next") ? nextWeekStart() : currentWeekStart());
+  try {
+    console.log(resolveCli(process.argv.slice(2)));
+  } catch (error) {
+    console.error(`current-week.mjs: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
 }

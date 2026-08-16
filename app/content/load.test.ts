@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { getLatestWeekDigest, getWeekDigest, listWeekSummaries, loadContent } from "./load";
+import { getHomeDigest, getWeekDigest, listWeekSummaries, loadContent } from "./load";
 
 // All sample food data below follows the golden rules in
 // docs/agents/dietary-safety.md (gluten-free, no cashews/pistachios,
@@ -154,32 +154,6 @@ describe("loadContent", () => {
   });
 });
 
-describe("getLatestWeekDigest", () => {
-  it("returns null before the first week is published", () => {
-    expect(getLatestWeekDigest(makeContentDir())).toBeNull();
-  });
-
-  it("returns the newest week with its recipes and derived shopping list", () => {
-    const digest = getLatestWeekDigest(fullContentDir());
-    expect(digest).not.toBeNull();
-    if (digest === null) return;
-    expect(digest.week.weekStart).toBe("2026-08-16");
-    expect(Object.keys(digest.recipesBySlug).sort()).toEqual([
-      "roasted-almonds",
-      "sheet-pan-salmon-quinoa",
-      "spinach-berry-salad",
-    ]);
-    // Shopping list is derived: olive oil merges across both meal recipes.
-    const pantry = digest.shoppingList.find((section) => section.section === "pantry");
-    expect(pantry).toBeDefined();
-    const oliveOil = pantry?.items.find((item) => item.name === "extra-virgin olive oil");
-    expect(oliveOil?.quantity).toBe(3);
-    // Safety notes survive into the derived list.
-    const almonds = pantry?.items.find((item) => item.name === "raw almonds");
-    expect(almonds?.safetyNotes).toHaveLength(1);
-  });
-});
-
 describe("getWeekDigest", () => {
   it("returns the requested week", () => {
     const digest = getWeekDigest("2026-08-09", fullContentDir());
@@ -201,5 +175,188 @@ describe("listWeekSummaries", () => {
       { weekStart: "2026-08-16", mealCount: 2, snackCount: 1 },
       { weekStart: "2026-08-09", mealCount: 2, snackCount: 1 },
     ]);
+  });
+});
+
+describe("getHomeDigest", () => {
+  // Three consecutive published weeks, plus a fourth after a one-week gap.
+  // Aug 16, Aug 23 and Aug 30 are consecutive Sundays; Sep 13 leaves Sep 6
+  // unpublished, which is the "skipped week" case.
+  function archive(): string {
+    return makeContentDir({
+      "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
+      "recipes/spinach-berry-salad.json": JSON.stringify(spinachSaladRecipe),
+      "recipes/roasted-almonds.json": JSON.stringify(almondSnackRecipe),
+      "weeks/2026-08-16.json": weekDoc("2026-08-16"),
+      "weeks/2026-08-23.json": weekDoc("2026-08-23"),
+      "weeks/2026-08-30.json": weekDoc("2026-08-30"),
+      "weeks/2026-09-13.json": weekDoc("2026-09-13"),
+    });
+  }
+
+  /** Noon in Denver on the given calendar date — safely mid-day. */
+  function denverNoon(date: string): Date {
+    return new Date(`${date}T18:00:00Z`);
+  }
+
+  it("returns null before the first week is published", () => {
+    expect(getHomeDigest(makeContentDir(), denverNoon("2026-08-18"))).toBeNull();
+  });
+
+  it("leads with the week containing today, not the newest on disk", () => {
+    // The regression this guards: publishing next week early must not take
+    // over the front page while the household is still cooking this week.
+    const home = getHomeDigest(archive(), denverNoon("2026-08-19"));
+    expect(home?.digest.week.weekStart).toBe("2026-08-16");
+  });
+
+  it("selects the containing week from every day of its span", () => {
+    for (const day of ["2026-08-23", "2026-08-24", "2026-08-26", "2026-08-28", "2026-08-29"]) {
+      expect(getHomeDigest(archive(), denverNoon(day))?.digest.week.weekStart, day).toBe(
+        "2026-08-23"
+      );
+    }
+  });
+
+  it("falls back to the newest week on disk when today sits in a gap", () => {
+    // Sep 6 was never published. The page must not go empty.
+    const home = getHomeDigest(archive(), denverNoon("2026-09-09"));
+    expect(home).not.toBeNull();
+    expect(home?.digest.week.weekStart).toBe("2026-09-13");
+  });
+
+  it("falls back when today is after every published week", () => {
+    const home = getHomeDigest(archive(), denverNoon("2026-12-02"));
+    expect(home?.digest.week.weekStart).toBe("2026-09-13");
+  });
+
+  it("falls back when today is before the earliest published week", () => {
+    const home = getHomeDigest(archive(), denverNoon("2026-01-07"));
+    expect(home?.digest.week.weekStart).toBe("2026-09-13");
+    expect(home?.newerWeekStart).toBeNull();
+  });
+
+  it("falls back to the latest when only future weeks exist", () => {
+    const dir = makeContentDir({
+      "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
+      "recipes/spinach-berry-salad.json": JSON.stringify(spinachSaladRecipe),
+      "recipes/roasted-almonds.json": JSON.stringify(almondSnackRecipe),
+      "weeks/2026-11-08.json": weekDoc("2026-11-08"),
+      "weeks/2026-11-15.json": weekDoc("2026-11-15"),
+    });
+    const home = getHomeDigest(dir, denverNoon("2026-08-19"));
+    expect(home?.digest.week.weekStart).toBe("2026-11-15");
+    expect(home?.newerWeekStart).toBeNull();
+  });
+
+  it("carries the displayed week's recipes and derived shopping list", () => {
+    const home = getHomeDigest(archive(), denverNoon("2026-08-19"));
+    expect(home).not.toBeNull();
+    if (home === null) return;
+    expect(Object.keys(home.digest.recipesBySlug).sort()).toEqual([
+      "roasted-almonds",
+      "sheet-pan-salmon-quinoa",
+      "spinach-berry-salad",
+    ]);
+    // Shopping list is derived: olive oil merges across both meal recipes.
+    const pantry = home.digest.shoppingList.find((section) => section.section === "pantry");
+    expect(pantry).toBeDefined();
+    const oliveOil = pantry?.items.find((item) => item.name === "extra-virgin olive oil");
+    expect(oliveOil?.quantity).toBe(3);
+    // Safety notes survive into the derived list — dietary-safety critical.
+    const almonds = pantry?.items.find((item) => item.name === "raw almonds");
+    expect(almonds?.safetyNotes).toHaveLength(1);
+  });
+
+  describe("newerWeekStart", () => {
+    it("points at the next published week when one exists", () => {
+      expect(getHomeDigest(archive(), denverNoon("2026-08-19"))?.newerWeekStart).toBe("2026-08-23");
+      expect(getHomeDigest(archive(), denverNoon("2026-08-26"))?.newerWeekStart).toBe("2026-08-30");
+    });
+
+    it("skips over an unpublished week to the next one that exists", () => {
+      // Displaying Aug 30; Sep 6 is missing, so the pointer is Sep 13.
+      expect(getHomeDigest(archive(), denverNoon("2026-09-02"))?.newerWeekStart).toBe("2026-09-13");
+    });
+
+    it("is null when the displayed week is the newest on disk", () => {
+      expect(getHomeDigest(archive(), denverNoon("2026-09-16"))?.newerWeekStart).toBeNull();
+    });
+  });
+
+  describe("resolves today in America/Denver, not UTC", () => {
+    it("stays on the current week when UTC has already rolled into the next", () => {
+      // 05:00Z on Sun Aug 23 is 23:00 Sat Aug 22 in Denver (MDT, UTC-6).
+      // A UTC-based implementation would jump to the Aug 23 week while the
+      // household is still finishing Saturday dinner.
+      const instant = new Date("2026-08-23T05:00:00Z");
+      expect(instant.toISOString().slice(0, 10)).toBe("2026-08-23");
+      const home = getHomeDigest(archive(), instant);
+      expect(home?.digest.week.weekStart).toBe("2026-08-16");
+      expect(home?.digest.week.weekStart).not.toBe("2026-08-23");
+    });
+
+    it("rolls to the next week exactly at Denver midnight", () => {
+      expect(
+        getHomeDigest(archive(), new Date("2026-08-23T05:59:59Z"))?.digest.week.weekStart
+      ).toBe("2026-08-16");
+      expect(
+        getHomeDigest(archive(), new Date("2026-08-23T06:00:00Z"))?.digest.week.weekStart
+      ).toBe("2026-08-23");
+    });
+  });
+
+  describe("DST transitions", () => {
+    function dstArchive(): string {
+      return makeContentDir({
+        "recipes/sheet-pan-salmon-quinoa.json": JSON.stringify(salmonRecipe),
+        "recipes/spinach-berry-salad.json": JSON.stringify(spinachSaladRecipe),
+        "recipes/roasted-almonds.json": JSON.stringify(almondSnackRecipe),
+        "weeks/2026-03-01.json": weekDoc("2026-03-01"),
+        "weeks/2026-03-08.json": weekDoc("2026-03-08"),
+        "weeks/2026-10-25.json": weekDoc("2026-10-25"),
+        "weeks/2026-11-01.json": weekDoc("2026-11-01"),
+      });
+    }
+
+    it("rolls over at Denver midnight on the spring-forward Sunday (MST → MDT)", () => {
+      // Midnight is 07:00Z because Denver is still on MST at that moment;
+      // the skipped hour comes later that morning.
+      const dir = dstArchive();
+      expect(getHomeDigest(dir, new Date("2026-03-08T06:59:59Z"))?.digest.week.weekStart).toBe(
+        "2026-03-01"
+      );
+      expect(getHomeDigest(dir, new Date("2026-03-08T07:00:00Z"))?.digest.week.weekStart).toBe(
+        "2026-03-08"
+      );
+      // After the clocks jump, still the same week.
+      expect(getHomeDigest(dir, new Date("2026-03-08T09:00:00Z"))?.digest.week.weekStart).toBe(
+        "2026-03-08"
+      );
+      expect(getHomeDigest(dir, new Date("2026-03-14T18:00:00Z"))?.digest.week.weekStart).toBe(
+        "2026-03-08"
+      );
+    });
+
+    it("rolls over at Denver midnight on the fall-back Sunday (MDT → MST)", () => {
+      // Midnight is 06:00Z (still MDT); 01:30 local then happens twice.
+      const dir = dstArchive();
+      expect(getHomeDigest(dir, new Date("2026-11-01T05:59:59Z"))?.digest.week.weekStart).toBe(
+        "2026-10-25"
+      );
+      expect(getHomeDigest(dir, new Date("2026-11-01T06:00:00Z"))?.digest.week.weekStart).toBe(
+        "2026-11-01"
+      );
+      // Both passes through the repeated hour stay in the new week.
+      expect(getHomeDigest(dir, new Date("2026-11-01T07:30:00Z"))?.digest.week.weekStart).toBe(
+        "2026-11-01"
+      );
+      expect(getHomeDigest(dir, new Date("2026-11-01T08:30:00Z"))?.digest.week.weekStart).toBe(
+        "2026-11-01"
+      );
+      expect(getHomeDigest(dir, new Date("2026-11-07T18:00:00Z"))?.digest.week.weekStart).toBe(
+        "2026-11-01"
+      );
+    });
   });
 });

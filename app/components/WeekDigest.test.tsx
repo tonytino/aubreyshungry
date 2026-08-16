@@ -81,7 +81,12 @@ describe("WeekDigest", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Week of Aug 16, 2026" })
     ).toBeInTheDocument();
-    expect(screen.getByText("Aug 16–22, 2026 · 2026-08-16")).toBeInTheDocument();
+    expect(screen.getByText("Aug 16–22, 2026")).toBeInTheDocument();
+  });
+
+  it("does not repeat the raw identifier — the label and range already state it", () => {
+    render(<WeekDigest digest={digest} />);
+    expect(screen.queryByText(/2026-08-16/)).not.toBeInTheDocument();
   });
 
   it("renders the week notes", () => {
