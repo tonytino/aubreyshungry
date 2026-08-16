@@ -6,14 +6,39 @@
   "cookMinutes": 0,
   "style": "snack",
   "ingredients": [
-    { "name": "banana", "quantity": 4, "unit": "piece", "section": "produce" },
-    { "name": "sunflower seed butter", "quantity": 0.5, "unit": "cup", "section": "pantry" },
-    { "name": "pumpkin seeds", "quantity": 0.25, "unit": "cup", "section": "pantry" },
-    { "name": "chia seeds", "quantity": 2, "unit": "tbsp", "section": "pantry" },
-    { "name": "ground cinnamon", "quantity": 0.5, "unit": "tsp", "section": "spices" }
+    {
+      "name": "banana",
+      "quantity": 4,
+      "unit": "piece",
+      "section": "produce"
+    },
+    {
+      "name": "sunflower seed butter",
+      "quantity": 0.5,
+      "unit": "cup",
+      "section": "pantry"
+    },
+    {
+      "name": "pumpkin seeds",
+      "quantity": 0.25,
+      "unit": "cup",
+      "section": "pantry"
+    },
+    {
+      "name": "chia seeds",
+      "quantity": 2,
+      "unit": "tbsp",
+      "section": "pantry"
+    },
+    {
+      "name": "ground cinnamon",
+      "quantity": 0.5,
+      "unit": "tsp",
+      "section": "spices"
+    }
   ],
   "steps": [
-    "Slice the bananas into thick rounds.",
+    "Slice the bananas into thick rounds — use however many are ripe; four is a guide, not a requirement.",
     "Sandwich pairs of rounds with a spoonful of sunflower seed butter.",
     "Dust with the cinnamon, then press the chia and pumpkin seeds onto the edges.",
     "Freeze on a lined tray for 1 hour, then move to a container."

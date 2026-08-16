@@ -1,6 +1,6 @@
 ---
 name: generate-week
-description: Owner-run weekly meal-plan generation — agree the target week with the owner, draft content/weeks/<YYYY-MM-DD>.json plus any new recipes in a local Claude Code session, run the deterministic gates, one adversarial dietary-safety review round, and open the safe:human plan PR. Use when the owner invokes /generate-week to create (or regenerate) a Sunday→Saturday week's plan. Never runs in CI; no metered LLM spend (ADR-007, amended by ADR-008).
+description: Owner-run weekly meal-plan generation — agree the target week and what is on hand about to spoil with the owner, draft content/weeks/<YYYY-MM-DD>.json plus any new recipes in a local Claude Code session, run the deterministic gates, one adversarial dietary-safety review round, and open the safe:human plan PR. Use when the owner invokes /generate-week to create (or regenerate) a Sunday→Saturday week's plan. Never runs in CI; no metered LLM spend (ADR-007, amended by ADR-008).
 ---
 
 # Generate Week (Owner-Run, Local Only)
@@ -82,10 +82,32 @@ the target week with the owner in step 2 (ADR-008 replaced the old
    distinct whole foods in your draft and push toward the
    `distinctFoodsPerWeekTarget` (~30).
 
-## 2. Choose the target week — ask the owner, never assume
+**Standing rule — never ask whether a food group is acceptable.** Those three
+inputs are the complete answer to "may we serve this?". Assume **every** food
+group is fine unless it is already captured as a dietary concern — either the
+golden rules forbid it (`docs/agents/dietary-safety.md`) or it appears in
+`avoidIngredients` in `content/preferences.json`. Dairy, soy, eggs, nightshades,
+fermented foods, red meat, grains, legumes: all in scope by default. Do **not**
+open an AskUserQuestion round to confirm one, and do **not** hedge a dish in
+prose ("plain yogurt if dairy sits well," "swap the tofu if soy is an issue") —
+a hedge is the same question in a different costume, and it pushes the decision
+onto the owner at read time. If you genuinely think a food should be off the
+menu, the fix is the owner adding it to `avoidIngredients` (soft dislike) or to
+the golden rules (hard constraint) — not a question at generation time. The
+only questions this skill asks the owner are the two in §2.
 
-There is no default and no argument. Work out the two candidate weeks, then
-**ask**.
+Distinguish this from a **label check**, which always stays: "tempeh only if
+certified GF" and "kimchi/kombucha labels need a GF check" are Golden Rule 1
+checks on a *product*, not permission checks on a *food group*. Never drop
+those.
+
+## 2. Ask the owner — the target week, and what needs using up
+
+There is no default and no argument. Work out the candidate weeks (steps 1–4),
+then **ask both questions in one AskUserQuestion exchange** (steps 5–6): which
+week, and what fresh food is already on hand and about to spoil. One exchange,
+two questions — the owner answers once. The week is blocking; the on-hand
+question is not.
 
 1. **Find the latest generated week.** List `content/weeks/*.json`; each
    basename is a `weekStart` date, so the **lexicographically highest
@@ -127,7 +149,67 @@ There is no default and no argument. Work out the two candidate weeks, then
    answer, **re-ask** — an unresponsive owner is busy, not an answer. Never
    guess the target week: generating the wrong week wastes a full
    high-stakes run and pollutes the archive.
-6. **If `content/weeks/<weekStart>.json` already exists, you are
+   **Put the on-hand question (step 6) in this same AskUserQuestion call** —
+   one exchange, two questions, so the owner answers once instead of twice.
+6. **Ask what fresh food is already on hand and about to spoil.** The plan
+   should eat it. Produce bought before this plan existed gets composted
+   otherwise, and waste reduction is the whole point of the question.
+   - **Wording**: ask *"What fresh ingredients do you already have that will
+     spoil during this week?"* The real answer is a free-form list, so offer
+     only a short option set and let the free-text ("Other") path carry the
+     substance: **"Nothing on hand / skip"** first, plus one or two common
+     cases such as *"Berries or soft fruit"* and *"Leafy greens or fresh
+     herbs"*. Say in the question that a typed list beats the presets, and
+     that skipping is a fine answer.
+   - **A non-answer means SKIP, not guess.** Unlike the week choice, this
+     question never blocks generation: if the owner does not answer, draft as
+     though nothing is on hand and say so in the PR body. Do not re-ask, do
+     not stall the run, and never invent an on-hand list.
+   - ⚠️ **The golden rules still win — always.** On-hand input is a soft
+     preference and **NEVER** overrides `docs/agents/dietary-safety.md`. This
+     is a new channel for owner-supplied ingredients to enter the plan, so
+     check it like any other: if the owner names something that breaks
+     Rule 1 (gluten) or Rule 2 (cashews/pistachios), or something you cannot
+     verify is clear of them, **exclude it and say so in the PR body** —
+     name the item and the rule. Never silently drop it, and never work it in
+     "just this once because they already bought it". An `avoidIngredients`
+     entry is different: that is a soft dislike, and the owner volunteering
+     the item here overrides it.
+   - **Schedule by perishability, most perishable first.** This is the part
+     that gets missed. The week runs Sunday→Saturday, and a berry bought
+     before the Sunday shop does not survive to Saturday. Rank the on-hand
+     items by how fast they turn and place them in that order: berries, soft
+     fruit, fresh herbs, leafy greens, mushrooms, cut vegetables, fresh
+     fish → **Sunday–Tuesday**; hardier produce (apples, citrus, carrots,
+     cabbage, roots, winter squash) can carry the back half. Anything with
+     roughly 48 hours left belongs in a Sunday or Monday slot, full stop.
+     Placing a use-it-up item late in the week is the same as not using it.
+   - **Where they land naturally**: snacks, anything sweet, yogurt-style
+     dishes, and finishing touches on meals (a handful scattered over a bowl,
+     herbs over a traybake) absorb odd, unknown amounts most easily — but
+     they may go anywhere they fit. Do not distort the week around them: the
+     preferences targets (fresh-meal floor, fatty fish, ~30 distinct foods)
+     and the nutrition-guidelines shape still govern.
+   - **Quantities are unknown — never invent a precise amount.** The owner
+     said "some blueberries," not "1.5 cups." The schema still needs a
+     positive `quantity` and a closed-enum `unit`, so pick a **modest** amount
+     that a reasonable on-hand stash satisfies, and put the flexibility in
+     prose — a step or the meal `note`: e.g. `1 cup blueberries` with the step
+     *"scatter the blueberries over the bowls — use what you have; more or
+     less is fine."* Never write a quantity you are guessing at as though it
+     were measured.
+   - **The shopping list will still list it — tell the owner why.** The
+     shopping list is **derived** from recipe ingredients and nothing filters
+     it (not even `pantryStaples`), so an on-hand item shows up in the aisle
+     list regardless. **Do not shrink a quantity or omit an ingredient to keep
+     it off the list** — that silently under-buys for anyone cooking the
+     recipe on its own and makes the recipe wrong; the recipe must stand by
+     itself. Disclose instead: **name the on-hand items in the week's `notes`
+     field** (e.g. *"Planned around the blueberries and spinach you already
+     have. They still appear on the shopping list — it is derived from the
+     recipes — so cross them off."*) and repeat it in the PR body. The list
+     stays honest and the owner is told, in writing, which lines to skip.
+7. **If `content/weeks/<weekStart>.json` already exists, you are
    regenerating.** Say so explicitly in the PR body and follow
    `docs/agents/generation.md` → Regeneration. Regeneration replaces that
    file in place (ADR-006: the file always holds the currently-published
@@ -152,6 +234,12 @@ Write `content/weeks/<weekStart>.json` and any new
   Sunday is the shop-and-batch-cook day that opens the week, so meal-prep
   dishes are cooked Sunday and cover the days that follow, and the fresh
   meals carry the back half of the week.
+- **Use-it-up items go early.** Every on-hand ingredient the owner named in
+  §2 step 6 is placed by perishability, most perishable first — a Saturday
+  slot for berries that were already a few days old on Sunday is a wasted
+  plan. Snacks, sweet things, yogurt-style dishes, and finishing touches are
+  the easiest homes for an unknown amount. The golden rules still filter this
+  list first, and the quantity/shopping-list rules in §2 step 6 apply.
 - **Snacks**: `snacksPerWeekTarget` slugs referencing `style: "snack"`
   recipes, drawn from the nutrition-guidelines prioritize list.
 - **Every recipe**: structured `ingredients` only (name, positive quantity,
@@ -299,6 +387,13 @@ verdict (the JSON schema in orchestration.md) for the PR body. Food content
    - **`## Adversarial review`** — paste the reviewer's verdict including
      `overall: SHIP` (or the escalation block; a `CONFIRMED` blocker never
      ships).
+   - **On-hand items** (§2 step 6): which ones the plan uses and on which
+     days, and — when the owner named something the golden rules forbid —
+     **which items were excluded and which rule they broke**. Never let an
+     excluded item vanish silently; the owner bought it and needs to know it
+     is not in the plan and why. Note that on-hand items still appear on the
+     derived shopping list so the owner can cross them off. If the owner
+     skipped the question, say the plan assumed nothing on hand.
    - If this is a **regeneration**, say so and name what changed and why
      (`docs/agents/generation.md` → Regeneration).
    - Check the Propagation box for `skip-changelog` (see label rationale

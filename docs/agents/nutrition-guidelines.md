@@ -29,6 +29,17 @@ added over time; keep the source list current.
 
 ## Build meals around (the prioritize list)
 
+**Every group below is in scope by default — never ask whether one is
+acceptable.** A food is off the menu for exactly two reasons: the golden rules
+forbid it (`docs/agents/dietary-safety.md`) or it is listed in
+`avoidIngredients` in `content/preferences.json`. Nothing here is conditional
+on checking with the household, and generated content must not hedge in prose
+either ("… if dairy sits well," "swap the tofu if soy is an issue") — a hedge
+is the same question moved to read time. The **golden-rule notes** column is a
+different thing and always applies: those are **label checks on a product**
+("is this brand of tempeh gluten-free?"), not permission checks on a food
+group.
+
 | Group | Specifics for our plans | Golden-rule notes |
 | --- | --- | --- |
 | **Vegetables, esp. leafy greens** | Spinach, kale, collards, broccoli, Swiss chard, arugula; also apigenin-rich celery, carrots, parsley. Work greens into sauces, eggs, soups — not just salads. | — |
@@ -36,7 +47,7 @@ added over time; keep the source list current.
 | **Legumes** | Beans, lentils, chickpeas, edamame, tofu; hummus/bean spreads with veg; roasted chickpeas as a snack. | **Tempeh only if certified GF** — some brands include barley or other gluten grains. Check canned/spread labels. |
 | **Omega-3 sources** | Fatty fish (salmon, herring, mackerel, sardines, trout; tuna occasionally), eggs, walnuts, flax, hemp, chia. Nut butter on apple slices; ground flax into yogurt or GF oatmeal. | Nut butters: almond, peanut, or sunflower **only** — never cashew butter (Golden Rule 2); prefer brands free of cashew/pistachio cross-contact. Oats: certified GF only. |
 | **Spices & aromatics** | Turmeric (curcumin; pair with black pepper), ginger, garlic, cardamom, cinnamon — use generously and routinely, not decoratively. | Buy single-ingredient spices; spice *blends* need a GF label check. |
-| **Fermented foods** | Plain yogurt, kimchi, sauerkraut, kombucha — evidence is promising (reduced inflammatory markers in a small 2021 study) though still maturing; treat as a nice-to-include, not a pillar. | No added-sugar varieties. Kimchi/kombucha labels need a GF check (soy sauce, barley malt appear in some brands); plain yogurt only if dairy sits well with the household. |
+| **Fermented foods** | Plain yogurt, kimchi, sauerkraut, kombucha — evidence is promising (reduced inflammatory markers in a small 2021 study) though still maturing; treat as a nice-to-include, not a pillar. | No added-sugar varieties. Kimchi/kombucha labels need a GF check (soy sauce, barley malt appear in some brands). |
 | **Coffee & tea** | Fine in moderation; antioxidant-rich. | Unsweetened — no added sugar. |
 
 ## Minimize (the displace list)

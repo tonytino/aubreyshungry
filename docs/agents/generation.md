@@ -81,8 +81,10 @@ weekly owner steps:
    (`latest + 7 days`); with no weeks on disk yet it offers the current
    Mountain-Time week (the Sunday on or before today) and the one after it,
    and if a reminder issue named a week outside those choices (a missed
-   cycle), it offers that week too.
-   With the answer, it drafts `content/weeks/<weekStart>.json` plus any new
+   cycle), it offers that week too. **In the same AskUserQuestion exchange it
+   also asks what fresh food is already on hand and about to spoil** (see
+   *What the skill asks the owner* below) so the owner answers once.
+   With the answers, it drafts `content/weeks/<weekStart>.json` plus any new
    `content/recipes/<slug>.json` files (reusing existing slugs where a dish
    repeats).
 4. **Gates, in order, all green before any PR:** `pnpm validate:content`
@@ -127,6 +129,63 @@ skill's "generate the next week" option name the same Sunday** — that is the
 happy path. The owner gets the Thursday issue, runs `/generate-week`, takes
 the *generate the next week* choice, and the plan lands before the weekend
 shop.
+
+## What the skill asks the owner — and what it never asks
+
+Exactly **two** questions, in **one** AskUserQuestion exchange (the owner runs
+parallel sessions and misses questions in prose — `CLAUDE.md`).
+
+### 1. Which week (blocking)
+
+Covered above and by ADR-008. No answer → **re-ask**; never guess the week.
+
+### 2. What is on hand and about to spoil (non-blocking)
+
+*"What fresh ingredients do you already have that will spoil during this
+week?"* The plan is then built to eat them — waste reduction is the point.
+Because the real answer is a free-form list, the options are only a nudge
+("Nothing on hand / skip", plus a common case or two); the free-text path
+carries the substance.
+
+- **A non-answer means skip, not guess.** Unlike the week choice, this one
+  never blocks: draft as though nothing is on hand and say so in the PR body.
+- **The golden rules still win.** On-hand input is a soft preference and never
+  overrides `docs/agents/dietary-safety.md`. Anything the owner names that
+  breaks Rule 1 or Rule 2 — or that cannot be verified clear of them — is
+  **excluded, and the exclusion is named in the PR body with the rule it
+  broke**. Never a silent drop, never an exception because it was already
+  bought. (An `avoidIngredients` entry is only a soft dislike; the owner
+  volunteering the item here overrides that.)
+- **Schedule by perishability, most perishable first.** The week runs
+  Sunday→Saturday: berries, soft fruit, herbs, greens, mushrooms, cut veg and
+  fresh fish land Sunday–Tuesday; hardy produce can carry the back half. A
+  use-it-up item placed on Saturday is not being used up.
+- **Where they land naturally:** snacks, sweet dishes, yogurt-style dishes,
+  and finishing touches on meals absorb unknown amounts most easily — but they
+  may go anywhere they fit, and they never displace the preferences targets.
+- **Quantities are unknown.** Never invent a precise amount. Write a modest
+  schema-valid quantity and put the flexibility in prose ("use what you have").
+- **On-hand items still appear on the shopping list.** The list is derived from
+  recipe ingredients and nothing filters it, so the recipe is never shrunk or
+  trimmed to hide an item — that would under-buy for anyone cooking it alone.
+  The plan discloses instead: name the on-hand items in the week's `notes` and
+  in the PR body so the owner can cross them off.
+
+### Never asked: whether a food group is acceptable
+
+**Standing owner rule.** Assume every food group is acceptable unless it is
+already captured as a dietary concern — the golden rules forbid it
+(`docs/agents/dietary-safety.md`) or it appears in `avoidIngredients` in
+`content/preferences.json`. Dairy, soy, eggs, nightshades, fermented foods,
+grains, legumes, red meat: in scope by default. Do not ask, and do not hedge
+in prose ("plain yogurt if dairy sits well with the household") — a hedge is
+the same question relocated to read time. If a food genuinely should be off
+the menu, it belongs in `avoidIngredients` or in the golden rules, not in a
+generation-time question.
+
+This does **not** touch **label checks**, which always stay: "tempeh only if
+certified GF" and "kimchi/kombucha labels need a GF check" are Golden Rule 1
+checks on a *product*, not permission checks on a *food group*.
 
 ## Regeneration / editing
 
